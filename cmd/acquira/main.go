@@ -5,31 +5,43 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
+	"acquira/internal/engine"
 	"acquira/internal/module"
 )
 
 func main() {
-	fmt.Println("Acquira v0.1.0 — test run")
+	fmt.Println("Acquira v0.1.0 — engine test run")
 
-	// Create a temporary output directory.
-	outDir := filepath.Join(".", "test-output", "system_metadata")
+	// Build a case directory name from the current timestamp.
+	// Real case IDs will come from user input later.
+	caseID := fmt.Sprintf("CASE-%s", time.Now().UTC().Format("20060102-150405"))
+	caseDir := filepath.Join(".", "test-output", caseID)
 
-	ctx := &module.Context{
-		OutputDir: outDir,
+	fmt.Printf("Case: %s\n", caseID)
+	fmt.Printf("Output: %s\n\n", caseDir)
+
+	// Profile: for now, just a single module.
+	// Next step will be a real profile with multiple modules.
+	modules := []module.Module{
+		&module.SystemMetadata{},
 	}
 
-	m := &module.SystemMetadata{}
-	fmt.Printf("Running module: %s (priority=%s, budget=%s)\n",
-		m.Name(), m.Priority(), m.TimeBudget())
+	eng := engine.New(caseDir)
+	result := eng.Run(modules)
 
-	result := m.Run(ctx)
+	// Print final summary.
+	fmt.Printf("\nFinal status: %s\n", result.Status)
+	fmt.Printf("Duration: %s\n", result.Duration)
 
-	// Print the result as JSON so we can see what happened.
+	// Write the full result as JSON to the case directory.
+	resultPath := filepath.Join(caseDir, "result.json")
 	data, _ := json.MarshalIndent(result, "", "  ")
-	fmt.Println(string(data))
+	_ = os.WriteFile(resultPath, data, 0o644)
+	fmt.Printf("Full result written to: %s\n", resultPath)
 
-	if result.Status == module.StatusFailed {
+	if result.Status == "failed" {
 		os.Exit(1)
 	}
 }
