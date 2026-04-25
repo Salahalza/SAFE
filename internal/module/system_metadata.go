@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 )
 
@@ -56,10 +57,22 @@ func writeEnvironmentJSON(path string) error {
 		"hostname":     hostname,
 		"collected_at": time.Now().UTC().Format(time.RFC3339),
 		"working_dir":  wd,
+		"is_admin":     isAdmin(),
+		"os":           runtime.GOOS,
+		"arch":         runtime.GOARCH,
 	}
 	data, err := json.MarshalIndent(env, "", "  ")
 	if err != nil {
 		return err
 	}
 	return os.WriteFile(path, data, 0o644)
+}
+
+// isAdmin returns true if the current process has administrative privileges.
+// On Windows, this checks if the process can open a handle that requires admin.
+// On other platforms, it returns false (or true for root on Unix).
+func isAdmin() bool {
+	// On Windows, attempt to open the physical drive — admin-only operation.
+	// On non-Windows, fall back to UID check.
+	return checkAdminPrivilege()
 }

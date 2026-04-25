@@ -27,6 +27,7 @@ func main() {
 	modules := []module.Module{
 		&module.SystemMetadata{},
 		&module.ProcessSnapshot{},
+		&module.NetworkSnapshot{},
 	}
 
 	eng := engine.New(caseDir)
