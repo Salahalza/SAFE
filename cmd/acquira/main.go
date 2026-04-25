@@ -26,6 +26,7 @@ func main() {
 	// Next step will be a real profile with multiple modules.
 	modules := []module.Module{
 		&module.SystemMetadata{},
+		&module.ProcessSnapshot{},
 	}
 
 	eng := engine.New(caseDir)
