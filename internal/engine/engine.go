@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"acquira/internal/module"
+	"acquira/internal/profile"
 )
 
-// Engine runs a sequence of modules and collects their results.
+// Engine runs the modules of a profile and collects their results.
 type Engine struct {
 	// CaseDir is the root output directory for this case.
-	// Each module gets its own subdirectory under CaseDir/modules/.
 	CaseDir string
 }
 
@@ -22,29 +22,32 @@ func New(caseDir string) *Engine {
 
 // CaseResult is the overall outcome of running a profile.
 type CaseResult struct {
-	CaseDir   string          `json:"case_dir"`
-	StartedAt time.Time       `json:"started_at"`
-	EndedAt   time.Time       `json:"ended_at"`
-	Duration  time.Duration   `json:"duration_ns"`
-	Modules   []module.Result `json:"modules"`
-	Status    string          `json:"status"`
+	CaseDir     string          `json:"case_dir"`
+	ProfileName string          `json:"profile_name"`
+	StartedAt   time.Time       `json:"started_at"`
+	EndedAt     time.Time       `json:"ended_at"`
+	Duration    time.Duration   `json:"duration_ns"`
+	Modules     []module.Result `json:"modules"`
+	Status      string          `json:"status"`
 }
 
-// Run executes every module in order and returns the overall result.
-func (e *Engine) Run(modules []module.Module) CaseResult {
+// Run executes the given profile and returns the overall result.
+func (e *Engine) Run(p *profile.Profile) CaseResult {
 	started := time.Now().UTC()
 	result := CaseResult{
-		CaseDir:   e.CaseDir,
-		StartedAt: started,
-		Modules:   []module.Result{},
+		CaseDir:     e.CaseDir,
+		ProfileName: p.Name,
+		StartedAt:   started,
+		Modules:     []module.Result{},
 	}
 
-	for i, m := range modules {
-		fmt.Printf("[%d/%d] Running module: %s (priority=%s, budget=%s)\n",
-			i+1, len(modules), m.Name(), m.Priority(), m.TimeBudget())
+	fmt.Printf("Profile: %s (v%s) — %s\n", p.Name, p.Version, p.Description)
+	fmt.Printf("Total budget: %s\n\n", p.TotalBudget)
 
-		// Each module gets its own numbered subdirectory.
-		// Format: 01_system_metadata, 02_process_snapshot, etc.
+	for i, m := range p.Modules {
+		fmt.Printf("[%d/%d] Running module: %s (priority=%s, budget=%s)\n",
+			i+1, len(p.Modules), m.Name(), m.Priority(), m.TimeBudget())
+
 		moduleDir := filepath.Join(
 			e.CaseDir,
 			"modules",
@@ -65,6 +68,12 @@ func (e *Engine) Run(modules []module.Module) CaseResult {
 		// Stop the profile early if a critical module failed.
 		if modResult.Status == module.StatusFailed && m.Priority() == module.PriorityCritical {
 			fmt.Printf("      critical module failed — aborting profile\n")
+			break
+		}
+
+		// Check total budget after each module.
+		if time.Since(started) > p.TotalBudget {
+			fmt.Printf("      profile total budget exceeded — aborting\n")
 			break
 		}
 	}
