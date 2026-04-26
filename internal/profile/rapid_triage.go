@@ -19,8 +19,8 @@ func RapidTriage() *Profile {
 			&module.SystemMetadata{},
 			&module.ProcessSnapshot{},
 			&module.NetworkSnapshot{},
-			// More modules will be appended as they're written:
-			// &module.EventLogsCore{},
+			&module.EventLogsCore{},
+			// Still to come:
 			// &module.RegistryCore{},
 			// &module.PersistenceCore{},
 		},

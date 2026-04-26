@@ -61,9 +61,9 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 		modResult := m.Run(ctx)
 		result.Modules = append(result.Modules, modResult)
 
-		fmt.Printf("      status=%s duration=%s artifacts=%d errors=%d\n",
+		fmt.Printf("      status=%s duration=%s artifacts=%d warnings=%d errors=%d\n",
 			modResult.Status, modResult.Duration,
-			len(modResult.Artifacts), len(modResult.Errors))
+			len(modResult.Artifacts), len(modResult.Warnings), len(modResult.Errors))
 
 		// Stop the profile early if a critical module failed.
 		if modResult.Status == module.StatusFailed && m.Priority() == module.PriorityCritical {

@@ -114,3 +114,60 @@ func prepareOutputDir(result *Result, outputDir string, started time.Time) bool 
 	}
 	return true
 }
+
+// runDirectOutputCommands executes commands that write their own output files
+// rather than writing to stdout. The command is given the output path as an
+// argument; we verify the file exists afterward and hash it.
+func runDirectOutputCommands(outputDir string, commands []DirectCommand, result *Result) {
+	for _, c := range commands {
+		outPath := filepath.Join(outputDir, c.Filename)
+
+		// Build args by substituting {OUTPUT} placeholder with the real path.
+		args := make([]string, len(c.Args))
+		for i, a := range c.Args {
+			if a == "{OUTPUT}" {
+				args[i] = outPath
+			} else {
+				args[i] = a
+			}
+		}
+
+		cmd := exec.Command(c.Name, args...)
+		stderr, err := cmd.CombinedOutput()
+		if err != nil {
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("%s: %v (stderr: %s)", c.Name, err, string(stderr)))
+			continue
+		}
+
+		// Verify the output file exists and is non-empty.
+		info, statErr := os.Stat(outPath)
+		if statErr != nil {
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("%s: output file not created: %v", c.Name, statErr))
+			continue
+		}
+		if info.Size() == 0 {
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("%s: output file is empty", c.Filename))
+		}
+
+		artifact, err := describeArtifact(outPath)
+		if err != nil {
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("hash %s: %v", c.Filename, err))
+			continue
+		}
+		result.Artifacts = append(result.Artifacts, artifact)
+	}
+}
+
+// DirectCommand describes a command whose output goes directly to a file
+// the command itself creates, not captured from stdout.
+// Use "{OUTPUT}" as a placeholder in Args; it will be replaced with the
+// full output path at runtime.
+type DirectCommand struct {
+	Filename string
+	Name     string
+	Args     []string
+}
