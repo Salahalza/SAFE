@@ -21,8 +21,7 @@ func RapidTriage() *Profile {
 			&module.NetworkSnapshot{},
 			&module.EventLogsCore{},
 			&module.RegistryCore{},
-			// Still to come:
-			// &module.PersistenceCore{},
+			&module.PersistenceCore{},
 		},
 	}
 }
