@@ -20,8 +20,8 @@ func RapidTriage() *Profile {
 			&module.ProcessSnapshot{},
 			&module.NetworkSnapshot{},
 			&module.EventLogsCore{},
+			&module.RegistryCore{},
 			// Still to come:
-			// &module.RegistryCore{},
 			// &module.PersistenceCore{},
 		},
 	}
