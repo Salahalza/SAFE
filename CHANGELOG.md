@@ -12,3 +12,10 @@
 - Graceful fallback for netstat without admin.
 - Admin detection in environment.json.
 - Verified end-to-end on Windows 11 VM, all modules success.
+
+
+## 2026-04-26
+- Completed rapid_triage profile: 6 modules, ~48 artifacts.
+- Added eventlogs_core, registry_core, persistence_core.
+- Engine now displays warnings count.
+- Verified end-to-end on Windows 11 VM, all modules success.
