@@ -35,3 +35,24 @@
 - Added case-level manifest (manifest.json + manifest.sha256 at case root).
 - Added `--verify <case-folder>` for offline integrity verification.
 - Verified end-to-end on Windows VM: 56 files hashed and verified successfully.
+
+
+## 2026-05-26
+
+Major session. Foundation work for v1.0.
+
+- Added CLI flags for case metadata: --case, --analyst, --target, --target-class, --notes.
+- Added case.json output in every case folder with full metadata.
+- Added preflight checks: OS support, admin privileges, disk space.
+- Added --skip-preflight override for advanced use.
+- Added --list-profiles to enumerate available profiles.
+- Added per-module manifest (module.json in each module folder).
+- Added case-level manifest (manifest.json + manifest.sha256 at case root).
+- Added --verify <case-folder> for offline integrity verification.
+- Added watchdog enforcement: per-module and per-profile timeouts via context.
+- Added new module status: timed_out, distinct from failed.
+- Added TUI with Bubble Tea: welcome → form → confirm flow.
+- TUI form captures case metadata, validates input, mirrors CLI path.
+- Fixed disk preflight to work when output directory doesn't exist yet.
+- Exit codes now reflect outcome: 0/1/3 for success/failed/degraded.
+- Verified end-to-end on Windows 11 VM: 48 artifacts, manifest, verification all passing.
