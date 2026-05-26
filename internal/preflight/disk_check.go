@@ -2,15 +2,13 @@ package preflight
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 )
 
 // DiskCheck verifies there's enough free space at the output directory.
 type DiskCheck struct {
-	// OutputPath is the directory where SAHM will write evidence.
-	OutputPath string
-
-	// MinimumBytes is the minimum free space required.
-	// Default: 5 GB if zero.
+	OutputPath   string
 	MinimumBytes uint64
 }
 
@@ -21,13 +19,25 @@ func (c *DiskCheck) Run() *Finding {
 		c.MinimumBytes = 5 * 1024 * 1024 * 1024 // 5 GB default
 	}
 
-	free, err := diskFreeBytes(c.OutputPath)
+	// Resolve to an existing ancestor directory. The output dir may not
+	// exist yet — we still want to check the volume's free space.
+	checkPath, err := resolveExistingAncestor(c.OutputPath)
+	if err != nil {
+		return &Finding{
+			Check:    c.Name(),
+			Severity: SeverityWarning,
+			Message:  "Could not resolve a valid path for disk space check.",
+			Detail:   fmt.Sprintf("Path: %s, Error: %v", c.OutputPath, err),
+		}
+	}
+
+	free, err := diskFreeBytes(checkPath)
 	if err != nil {
 		return &Finding{
 			Check:    c.Name(),
 			Severity: SeverityWarning,
 			Message:  "Could not determine free disk space.",
-			Detail:   fmt.Sprintf("Path: %s, Error: %v", c.OutputPath, err),
+			Detail:   fmt.Sprintf("Path: %s, Error: %v", checkPath, err),
 		}
 	}
 
@@ -40,8 +50,6 @@ func (c *DiskCheck) Run() *Finding {
 		}
 	}
 
-	// Warn if we're under 20 GB but above the minimum — enough to start, but
-	// extended profiles will fill it fast.
 	const warnThreshold = 20 * 1024 * 1024 * 1024
 	if free < warnThreshold {
 		return &Finding{
@@ -55,7 +63,30 @@ func (c *DiskCheck) Run() *Finding {
 	return nil
 }
 
-// humanBytes formats a byte count as a human-readable string (e.g. "1.5 GB").
+// resolveExistingAncestor walks up from path until it finds an existing
+// directory. Returns the first existing ancestor, or the absolute root
+// if none of the path components exist.
+func resolveExistingAncestor(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+
+	current := abs
+	for {
+		info, err := os.Stat(current)
+		if err == nil && info.IsDir() {
+			return current, nil
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			// Reached the root without finding anything.
+			return current, nil
+		}
+		current = parent
+	}
+}
+
 func humanBytes(b uint64) string {
 	const unit = 1024
 	if b < unit {
