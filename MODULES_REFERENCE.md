@@ -1,4 +1,4 @@
-# Acquira — Module Command Reference
+# SAHAM — Module Command Reference
 
 Technical brief for the IR team. Covers every command in every module of the
 `rapid_triage` profile, what it captures, and why it's in the collection.
@@ -16,7 +16,7 @@ case needs to know what target it came from. Budget: 30 seconds.
 |------|---------|------------------|
 | `systeminfo.txt` | `systeminfo` | OS name, version, build, install date, hotfixes, hardware summary, locale, BIOS info. Foundational target identification. |
 | `hostname.txt` | `hostname` | Computer name. Cheap, but verifies the target identity matches the case metadata. |
-| `whoami_all.txt` | `whoami /all` | Current user, SID, group memberships, privileges. Tells you what context Acquira ran under — important when analyzing partial collections. |
+| `whoami_all.txt` | `whoami /all` | Current user, SID, group memberships, privileges. Tells you what context SAHAM ran under — important when analyzing partial collections. |
 | `ipconfig_all.txt` | `ipconfig /all` | All network adapters, IPs, MACs, DNS servers, DHCP info. Network identity of the target at collection time. |
 | `environment.json` | (internal) | Hostname, collection timestamp, working directory, **is_admin flag**, OS, architecture. The is_admin flag is critical for interpreting partial results — many modules degrade without admin. |
 

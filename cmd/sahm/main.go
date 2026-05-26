@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"time"
 
-	"saham/internal/engine"
-	"saham/internal/profile"
+	"sahm/internal/engine"
+	"sahm/internal/profile"
 )
 
 func main() {
-	fmt.Println("Acquira v0.1.0 — profile test run")
+	fmt.Println("SAHM v0.1.0 — System for Artifact Harvesting and Management")
 
 	// Set up the profile registry with built-in profiles.
 	registry := profile.NewRegistry()

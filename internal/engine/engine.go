@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"saham/internal/module"
-	"saham/internal/profile"
+	"sahm/internal/module"
+	"sahm/internal/profile"
 )
 
 // Engine runs the modules of a profile and collects their results.

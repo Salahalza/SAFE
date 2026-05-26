@@ -3,7 +3,7 @@ package profile
 import (
 	"time"
 
-	"saham/internal/module"
+	"sahm/internal/module"
 )
 
 // RapidTriage returns the rapid_triage profile definition.
