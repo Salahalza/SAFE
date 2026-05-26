@@ -10,6 +10,7 @@ import (
 
 	"sahm/internal/casemeta"
 	"sahm/internal/engine"
+	"sahm/internal/manifest"
 	"sahm/internal/preflight"
 	"sahm/internal/profile"
 )
@@ -27,8 +28,38 @@ func main() {
 		notes         = flag.String("notes", "", "Optional analyst notes.")
 		listProfiles  = flag.Bool("list-profiles", false, "List available profiles and exit.")
 		skipPreflight = flag.Bool("skip-preflight", false, "Skip preflight checks (advanced use only).")
+		verifyDir     = flag.String("verify", "", "Verify integrity of a case folder. Specify the case folder path.")
 	)
 	flag.Parse()
+
+	// Handle --verify mode (offline integrity verification).
+	if *verifyDir != "" {
+		fmt.Printf("Verifying: %s\n\n", *verifyDir)
+		result, err := manifest.Verify(*verifyDir)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Verification failed: %v\n", err)
+			os.Exit(2)
+		}
+		fmt.Printf("Files checked: %d\n", result.FilesChecked)
+		if result.OK {
+			fmt.Println("Status: OK — every file matches its recorded hash.")
+			os.Exit(0)
+		}
+		fmt.Println("Status: FAILED")
+		if len(result.Missing) > 0 {
+			fmt.Println("\nMissing files:")
+			for _, m := range result.Missing {
+				fmt.Printf("  %s\n", m)
+			}
+		}
+		if len(result.Mismatches) > 0 {
+			fmt.Println("\nHash mismatches:")
+			for _, m := range result.Mismatches {
+				fmt.Printf("  %s\n", m)
+			}
+		}
+		os.Exit(1)
+	}
 
 	// Register profiles.
 	registry := profile.NewRegistry()
@@ -126,6 +157,15 @@ func main() {
 	if err := os.WriteFile(resultPath, data, 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write result.json: %v\n", err)
 	}
+
+	// Write the case-level manifest (must come after result.json).
+	if err := manifest.WriteCaseManifest(caseDir, c.CaseID); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to write case manifest: %v\n", err)
+	} else {
+		fmt.Printf("Manifest:      %s\n", filepath.Join(caseDir, "manifest.json"))
+		fmt.Printf("SHA256 file:   %s\n", filepath.Join(caseDir, "manifest.sha256"))
+	}
+
 	fmt.Printf("Result file:   %s\n", resultPath)
 	fmt.Printf("Case folder:   %s\n", caseDir)
 

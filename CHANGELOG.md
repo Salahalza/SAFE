@@ -19,3 +19,12 @@
 - Added eventlogs_core, registry_core, persistence_core.
 - Engine now displays warnings count.
 - Verified end-to-end on Windows 11 VM, all modules success.
+
+
+## 2026-05-26
+- Added CLI flags for case metadata (case ID, analyst, target, target class, notes).
+- Added case.json output containing full case metadata.
+- Added preflight checks: OS support, admin privileges, disk space.
+- Added --skip-preflight override for advanced use.
+- Added --list-profiles for discovering available profiles.
+- Exit codes now reflect outcome (0/1/3 for success/failed/degraded).

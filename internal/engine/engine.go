@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"sahm/internal/manifest"
 	"sahm/internal/module"
 	"sahm/internal/profile"
 )
@@ -64,6 +65,12 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 		fmt.Printf("      status=%s duration=%s artifacts=%d warnings=%d errors=%d\n",
 			modResult.Status, modResult.Duration,
 			len(modResult.Artifacts), len(modResult.Warnings), len(modResult.Errors))
+
+		// Write per-module manifest. If this fails, warn but continue —
+		// the case manifest writer will detect the missing module.json.
+		if _, err := manifest.WriteModuleManifest(moduleDir, m.Name()); err != nil {
+			fmt.Printf("      warning: failed to write module manifest: %v\n", err)
+		}
 
 		// Stop the profile early if a critical module failed.
 		if modResult.Status == module.StatusFailed && m.Priority() == module.PriorityCritical {
