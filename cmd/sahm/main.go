@@ -34,7 +34,6 @@ func main() {
 	)
 	flag.Parse()
 
-	// Handle --tui mode (interactive terminal UI).
 	if *tuiMode {
 		c, err := tui.Run()
 		if err != nil {
@@ -45,7 +44,6 @@ func main() {
 			fmt.Println("Collection cancelled.")
 			os.Exit(0)
 		}
-		// For tonight: just print what we captured. Collection wiring comes next.
 		fmt.Println("Case metadata captured:")
 		fmt.Printf("  Case ID:    %s\n", c.CaseID)
 		fmt.Printf("  Analyst:    %s\n", c.Analyst)
@@ -58,7 +56,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Handle --verify mode (offline integrity verification).
 	if *verifyDir != "" {
 		fmt.Printf("Verifying: %s\n\n", *verifyDir)
 		result, err := manifest.Verify(*verifyDir)
@@ -173,6 +170,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write result.json: %v\n", err)
 	}
 
+	summary := buildCaseSummary(c, result, sahmVersion)
+	if err := manifest.WriteCaseReport(caseDir, summary); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to write case report: %v\n", err)
+	} else {
+		fmt.Printf("Report:        %s\n", filepath.Join(caseDir, "case_report.txt"))
+	}
+
 	if err := manifest.WriteCaseManifest(caseDir, c.CaseID); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write case manifest: %v\n", err)
 	} else {
@@ -190,6 +194,34 @@ func main() {
 		os.Exit(3)
 	default:
 		os.Exit(0)
+	}
+}
+
+func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string) manifest.CaseSummary {
+	mods := make([]manifest.ModuleSummary, 0, len(result.Modules))
+	for _, m := range result.Modules {
+		mods = append(mods, manifest.ModuleSummary{
+			Name:          m.ModuleName,
+			Status:        string(m.Status),
+			Duration:      m.Duration,
+			ArtifactCount: len(m.Artifacts),
+			Warnings:      m.Warnings,
+			Errors:        m.Errors,
+		})
+	}
+	return manifest.CaseSummary{
+		CaseID:      c.CaseID,
+		Analyst:     c.Analyst,
+		Target:      c.TargetIdentifier,
+		TargetClass: c.TargetClass,
+		Notes:       c.Notes,
+		Profile:     c.ProfileName,
+		SAHMVersion: version,
+		StartedAt:   result.StartedAt,
+		EndedAt:     result.EndedAt,
+		Duration:    result.Duration,
+		Status:      result.Status,
+		Modules:     mods,
 	}
 }
 
