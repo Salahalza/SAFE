@@ -18,6 +18,17 @@ type Command struct {
 	Filename string
 	Name     string
 	Args     []string
+
+	// MinSize, if > 0, is the minimum file size (in bytes) for the output
+	// to be kept as an artifact. Files below this are dropped with a warning.
+	// 0 means don't drop based on size.
+	MinSize int64
+
+	// Check is an optional content verification step.
+	Check *ContentCheck
+
+	// SkipChecks bypasses all content verification (but MinSize still applies).
+	SkipChecks bool
 }
 
 // DirectCommand describes a command whose output goes directly to a file
@@ -26,10 +37,17 @@ type DirectCommand struct {
 	Filename string
 	Name     string
 	Args     []string
+
+	// Check is an optional content verification step.
+	Check *ContentCheck
+
+	// SkipChecks bypasses all content verification.
+	SkipChecks bool
 }
 
 // runCommands executes a slice of Commands inside outputDir.
 // Honors the provided context for cancellation.
+// After each command, runs ContentCheck if defined.
 func runCommands(ctx context.Context, outputDir string, commands []Command, result *Result) {
 	for _, c := range commands {
 		if ctx.Err() != nil {
@@ -43,6 +61,33 @@ func runCommands(ctx context.Context, outputDir string, commands []Command, resu
 				fmt.Sprintf("%s: %v", c.Name, err))
 			continue
 		}
+
+		// Per-command minimum size check. Default (0) = no minimum.
+		if c.MinSize > 0 {
+			info, statErr := os.Stat(outPath)
+			if statErr == nil && info.Size() < c.MinSize {
+				_ = os.Remove(outPath)
+				result.Warnings = append(result.Warnings,
+					fmt.Sprintf("%s: output (%d bytes) below expected minimum (%d) — artifact dropped",
+						c.Filename, info.Size(), c.MinSize))
+				continue
+			}
+		}
+
+		// Content verification.
+		if !c.SkipChecks {
+			check := c.Check
+			if check == nil {
+				check = &ContentCheck{MustNotContain: commonErrorSignatures}
+			}
+			if issues := check.verifyContent(outPath); len(issues) > 0 {
+				for _, issue := range issues {
+					result.Warnings = append(result.Warnings,
+						fmt.Sprintf("%s: %s", c.Filename, issue))
+				}
+			}
+		}
+
 		artifact, err := describeArtifact(outPath)
 		if err != nil {
 			result.Warnings = append(result.Warnings,
@@ -69,7 +114,6 @@ func runOne(ctx context.Context, name string, args []string, outPath string) err
 }
 
 // runDirectOutputCommands executes commands that write their own output files.
-// Honors the provided context for cancellation.
 func runDirectOutputCommands(ctx context.Context, outputDir string, commands []DirectCommand, result *Result) {
 	for _, c := range commands {
 		if ctx.Err() != nil {
@@ -110,6 +154,17 @@ func runDirectOutputCommands(ctx context.Context, outputDir string, commands []D
 		if info.Size() == 0 {
 			result.Warnings = append(result.Warnings,
 				fmt.Sprintf("%s: output file is empty", c.Filename))
+		}
+
+		// Run content check if defined (default checks don't apply to direct
+		// commands because binary outputs like .evtx aren't scannable text).
+		if !c.SkipChecks && c.Check != nil {
+			if issues := c.Check.verifyContent(outPath); len(issues) > 0 {
+				for _, issue := range issues {
+					result.Warnings = append(result.Warnings,
+						fmt.Sprintf("%s: %s", c.Filename, issue))
+				}
+			}
 		}
 
 		artifact, err := describeArtifact(outPath)
@@ -154,12 +209,10 @@ func sha256File(path string) (string, error) {
 }
 
 // finalize sets the EndedAt, Duration, and Status fields on a Result.
-// If ctx was cancelled and no artifacts were produced, status becomes timed_out.
 func finalize(result *Result, started time.Time, ctx context.Context) {
 	result.EndedAt = time.Now().UTC()
 	result.Duration = result.EndedAt.Sub(started)
 
-	// Context cancelled = timeout. If we got any artifacts, partial; if not, timed_out.
 	if ctx.Err() != nil {
 		if len(result.Artifacts) > 0 {
 			result.Status = StatusPartial
@@ -169,13 +222,15 @@ func finalize(result *Result, started time.Time, ctx context.Context) {
 		return
 	}
 
+	// New: if there are warnings (including content warnings) but no errors,
+	// status is partial — analyst should be aware something needs review.
 	switch {
-	case len(result.Errors) == 0:
-		result.Status = StatusSuccess
-	case len(result.Artifacts) > 0:
+	case len(result.Errors) > 0 && len(result.Artifacts) == 0:
+		result.Status = StatusFailed
+	case len(result.Errors) > 0 || len(result.Warnings) > 0:
 		result.Status = StatusPartial
 	default:
-		result.Status = StatusFailed
+		result.Status = StatusSuccess
 	}
 }
 

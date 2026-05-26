@@ -27,31 +27,22 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 		{Filename: "scheduled_tasks_xml.txt", Name: "schtasks", Args: []string{"/query", "/xml", "ONE"}},
 		{Filename: "services_qc_all.txt", Name: "sc", Args: []string{"query", "state=", "all"}},
 		{
-			Filename: "wmi_event_consumers.txt",
-			Name:     "powershell",
-			Args: []string{
-				"-NoProfile",
-				"-Command",
-				"Get-CimInstance -Namespace root\\subscription -ClassName __EventConsumer | Format-List *",
-			},
+			Filename:   "wmi_event_consumers.txt",
+			Name:       "powershell",
+			Args:       []string{"-NoProfile", "-Command", "Get-CimInstance -Namespace root\\subscription -ClassName __EventConsumer | Format-List *"},
+			SkipChecks: true,
 		},
 		{
-			Filename: "wmi_event_filters.txt",
-			Name:     "powershell",
-			Args: []string{
-				"-NoProfile",
-				"-Command",
-				"Get-CimInstance -Namespace root\\subscription -ClassName __EventFilter | Format-List *",
-			},
+			Filename:   "wmi_event_filters.txt",
+			Name:       "powershell",
+			Args:       []string{"-NoProfile", "-Command", "Get-CimInstance -Namespace root\\subscription -ClassName __EventFilter | Format-List *"},
+			SkipChecks: true,
 		},
 		{
-			Filename: "wmi_filter_to_consumer_bindings.txt",
-			Name:     "powershell",
-			Args: []string{
-				"-NoProfile",
-				"-Command",
-				"Get-CimInstance -Namespace root\\subscription -ClassName __FilterToConsumerBinding | Format-List *",
-			},
+			Filename:   "wmi_filter_to_consumer_bindings.txt",
+			Name:       "powershell",
+			Args:       []string{"-NoProfile", "-Command", "Get-CimInstance -Namespace root\\subscription -ClassName __FilterToConsumerBinding | Format-List *"},
+			SkipChecks: true,
 		},
 		{
 			Filename: "startup_folders.txt",
@@ -64,10 +55,11 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 					"$env:AppData\Microsoft\Windows\Start Menu\Programs\Startup"
 				); foreach ($p in $paths) { Write-Output "=== $p ==="; if (Test-Path $p) { Get-ChildItem -Path $p -Force | Format-List FullName,Length,LastWriteTime,CreationTime } else { Write-Output "(path not present)" } }`,
 			},
+			SkipChecks: true,
 		},
 		{Filename: "winlogon_keys.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"}},
 		{Filename: "image_file_execution_options.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options", "/s"}},
-		{Filename: "appinit_dlls.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows", "/v", "AppInit_DLLs"}},
+		{Filename: "appinit_dlls.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows", "/v", "AppInit_DLLs"}, SkipChecks: true},
 	}
 	runCommands(ctx.Ctx, ctx.OutputDir, stdoutCommands, &result)
 
@@ -91,15 +83,20 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 			Warnings:  []string{},
 		}
 		runCommands(ctx.Ctx, ctx.OutputDir, []Command{{
-			Filename: filename,
-			Name:     "reg",
-			Args:     []string{"query", k.key, "/s"},
+			Filename:   filename,
+			Name:       "reg",
+			Args:       []string{"query", k.key, "/s"},
+			SkipChecks: true,
+			MinSize:    50,
 		}}, &captured)
 
 		result.Artifacts = append(result.Artifacts, captured.Artifacts...)
 		for _, e := range captured.Errors {
 			result.Warnings = append(result.Warnings,
 				"run key absent or unreadable: "+e)
+		}
+		for _, w := range captured.Warnings {
+			result.Warnings = append(result.Warnings, w)
 		}
 	}
 
