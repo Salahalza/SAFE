@@ -36,10 +36,25 @@ func main() {
 
 	// Handle --tui mode (interactive terminal UI).
 	if *tuiMode {
-		if err := tui.Run(); err != nil {
+		c, err := tui.Run()
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
 			os.Exit(1)
 		}
+		if c == nil {
+			fmt.Println("Collection cancelled.")
+			os.Exit(0)
+		}
+		// For tonight: just print what we captured. Collection wiring comes next.
+		fmt.Println("Case metadata captured:")
+		fmt.Printf("  Case ID:    %s\n", c.CaseID)
+		fmt.Printf("  Analyst:    %s\n", c.Analyst)
+		fmt.Printf("  Target:     %s (%s)\n", c.TargetIdentifier, c.TargetClass)
+		if c.Notes != "" {
+			fmt.Printf("  Notes:      %s\n", c.Notes)
+		}
+		fmt.Println()
+		fmt.Println("Next step: integration with collection engine.")
 		os.Exit(0)
 	}
 
