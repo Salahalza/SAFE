@@ -13,6 +13,7 @@ import (
 	"sahm/internal/manifest"
 	"sahm/internal/preflight"
 	"sahm/internal/profile"
+	"sahm/internal/tui"
 )
 
 const sahmVersion = "0.1.0"
@@ -29,8 +30,18 @@ func main() {
 		listProfiles  = flag.Bool("list-profiles", false, "List available profiles and exit.")
 		skipPreflight = flag.Bool("skip-preflight", false, "Skip preflight checks (advanced use only).")
 		verifyDir     = flag.String("verify", "", "Verify integrity of a case folder. Specify the case folder path.")
+		tuiMode       = flag.Bool("tui", false, "Launch the interactive terminal UI.")
 	)
 	flag.Parse()
+
+	// Handle --tui mode (interactive terminal UI).
+	if *tuiMode {
+		if err := tui.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 
 	// Handle --verify mode (offline integrity verification).
 	if *verifyDir != "" {
@@ -61,13 +72,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register profiles.
 	registry := profile.NewRegistry()
 	if err := profile.RegisterDefaults(registry); err != nil {
 		fatalf("failed to register profiles: %v", err)
 	}
 
-	// Handle --list-profiles.
 	if *listProfiles {
 		fmt.Println("Available profiles:")
 		for _, name := range registry.Names() {
@@ -77,7 +86,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Preflight checks before anything else touches disk.
 	if !*skipPreflight {
 		checks := []preflight.Check{
 			&preflight.OSCheck{},
@@ -95,7 +103,6 @@ func main() {
 		}
 	}
 
-	// Build case metadata.
 	c := &casemeta.Case{
 		CaseID:           *caseID,
 		Analyst:          *analyst,
@@ -113,7 +120,6 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Look up the profile.
 	p, err := registry.Get(c.ProfileName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -121,10 +127,8 @@ func main() {
 		os.Exit(2)
 	}
 
-	// Build case directory.
 	caseDir := filepath.Join(*outputDir, c.CaseDirName())
 
-	// Print header.
 	fmt.Printf("SAHM v%s — System for Artifact Harvesting and Management\n", sahmVersion)
 	fmt.Println()
 	fmt.Printf("Case ID:    %s\n", c.CaseID)
@@ -137,28 +141,23 @@ func main() {
 	}
 	fmt.Println()
 
-	// Write case.json before running modules.
 	if err := c.WriteToCase(caseDir); err != nil {
 		fatalf("write case metadata: %v", err)
 	}
 
-	// Run the profile.
 	eng := engine.New(caseDir)
 	result := eng.Run(p)
 
-	// Print summary.
 	fmt.Println()
 	fmt.Printf("Final status:  %s\n", result.Status)
 	fmt.Printf("Duration:      %s\n", result.Duration)
 
-	// Write result.json.
 	resultPath := filepath.Join(caseDir, "result.json")
 	data, _ := json.MarshalIndent(result, "", "  ")
 	if err := os.WriteFile(resultPath, data, 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write result.json: %v\n", err)
 	}
 
-	// Write the case-level manifest (must come after result.json).
 	if err := manifest.WriteCaseManifest(caseDir, c.CaseID); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write case manifest: %v\n", err)
 	} else {
@@ -169,7 +168,6 @@ func main() {
 	fmt.Printf("Result file:   %s\n", resultPath)
 	fmt.Printf("Case folder:   %s\n", caseDir)
 
-	// Exit code reflects outcome.
 	switch result.Status {
 	case "failed":
 		os.Exit(1)
