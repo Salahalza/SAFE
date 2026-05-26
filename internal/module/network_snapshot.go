@@ -2,8 +2,6 @@ package module
 
 import "time"
 
-// NetworkSnapshot captures the network state of the target —
-// connections, listening ports, ARP, routing, DNS cache, and firewall.
 type NetworkSnapshot struct{}
 
 func (m *NetworkSnapshot) Name() string              { return "network_snapshot" }
@@ -25,36 +23,12 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 	}
 
 	commands := []Command{
-		{
-			Filename: "netstat_abno.txt",
-			Name:     "netstat",
-			Args:     []string{"-abno"}, // requires admin (-b flag)
-		},
-		{
-			Filename: "netstat_ano.txt",
-			Name:     "netstat",
-			Args:     []string{"-ano"}, // works without admin, no process names
-		},
-		{
-			Filename: "netstat_rn.txt",
-			Name:     "netstat",
-			Args:     []string{"-rn"},
-		},
-		{
-			Filename: "arp_a.txt",
-			Name:     "arp",
-			Args:     []string{"-a"},
-		},
-		{
-			Filename: "route_print.txt",
-			Name:     "route",
-			Args:     []string{"print"},
-		},
-		{
-			Filename: "dns_cache.txt",
-			Name:     "ipconfig",
-			Args:     []string{"/displaydns"},
-		},
+		{Filename: "netstat_abno.txt", Name: "netstat", Args: []string{"-abno"}},
+		{Filename: "netstat_ano.txt", Name: "netstat", Args: []string{"-ano"}},
+		{Filename: "netstat_rn.txt", Name: "netstat", Args: []string{"-rn"}},
+		{Filename: "arp_a.txt", Name: "arp", Args: []string{"-a"}},
+		{Filename: "route_print.txt", Name: "route", Args: []string{"print"}},
+		{Filename: "dns_cache.txt", Name: "ipconfig", Args: []string{"/displaydns"}},
 		{
 			Filename: "tcp_connections_powershell.txt",
 			Name:     "powershell",
@@ -85,11 +59,7 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 		{
 			Filename: "firewall_profiles.txt",
 			Name:     "powershell",
-			Args: []string{
-				"-NoProfile",
-				"-Command",
-				"Get-NetFirewallProfile | Format-List",
-			},
+			Args:     []string{"-NoProfile", "-Command", "Get-NetFirewallProfile | Format-List"},
 		},
 		{
 			Filename: "network_adapters.txt",
@@ -101,8 +71,8 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 			},
 		},
 	}
-	runCommands(ctx.OutputDir, commands, &result)
+	runCommands(ctx.Ctx, ctx.OutputDir, commands, &result)
 
-	finalize(&result, started)
+	finalize(&result, started, ctx.Ctx)
 	return result
 }

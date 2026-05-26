@@ -2,7 +2,6 @@ package module
 
 import "time"
 
-// ProcessSnapshot captures the running processes on the target.
 type ProcessSnapshot struct{}
 
 func (m *ProcessSnapshot) Name() string              { return "process_snapshot" }
@@ -24,16 +23,8 @@ func (m *ProcessSnapshot) Run(ctx *Context) Result {
 	}
 
 	commands := []Command{
-		{
-			Filename: "tasklist_verbose.txt",
-			Name:     "tasklist",
-			Args:     []string{"/v", "/fo", "list"},
-		},
-		{
-			Filename: "tasklist_services.txt",
-			Name:     "tasklist",
-			Args:     []string{"/svc", "/fo", "list"},
-		},
+		{Filename: "tasklist_verbose.txt", Name: "tasklist", Args: []string{"/v", "/fo", "list"}},
+		{Filename: "tasklist_services.txt", Name: "tasklist", Args: []string{"/svc", "/fo", "list"}},
 		{
 			Filename: "processes_powershell.txt",
 			Name:     "powershell",
@@ -53,8 +44,8 @@ func (m *ProcessSnapshot) Run(ctx *Context) Result {
 			},
 		},
 	}
-	runCommands(ctx.OutputDir, commands, &result)
+	runCommands(ctx.Ctx, ctx.OutputDir, commands, &result)
 
-	finalize(&result, started)
+	finalize(&result, started, ctx.Ctx)
 	return result
 }

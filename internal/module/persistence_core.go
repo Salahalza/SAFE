@@ -2,9 +2,6 @@ package module
 
 import "time"
 
-// PersistenceCore captures common persistence mechanisms — the locations
-// where attackers most often establish footholds: scheduled tasks, autorun
-// registry keys, services, startup folders, and WMI event subscriptions.
 type PersistenceCore struct{}
 
 func (m *PersistenceCore) Name() string              { return "persistence_core" }
@@ -25,23 +22,10 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 		return result
 	}
 
-	// Stdout-capture commands.
 	stdoutCommands := []Command{
-		{
-			Filename: "scheduled_tasks_verbose.txt",
-			Name:     "schtasks",
-			Args:     []string{"/query", "/fo", "LIST", "/v"},
-		},
-		{
-			Filename: "scheduled_tasks_xml.txt",
-			Name:     "schtasks",
-			Args:     []string{"/query", "/xml", "ONE"},
-		},
-		{
-			Filename: "services_qc_all.txt",
-			Name:     "sc",
-			Args:     []string{"query", "state=", "all"},
-		},
+		{Filename: "scheduled_tasks_verbose.txt", Name: "schtasks", Args: []string{"/query", "/fo", "LIST", "/v"}},
+		{Filename: "scheduled_tasks_xml.txt", Name: "schtasks", Args: []string{"/query", "/xml", "ONE"}},
+		{Filename: "services_qc_all.txt", Name: "sc", Args: []string{"query", "state=", "all"}},
 		{
 			Filename: "wmi_event_consumers.txt",
 			Name:     "powershell",
@@ -81,38 +65,12 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 				); foreach ($p in $paths) { Write-Output "=== $p ==="; if (Test-Path $p) { Get-ChildItem -Path $p -Force | Format-List FullName,Length,LastWriteTime,CreationTime } else { Write-Output "(path not present)" } }`,
 			},
 		},
-		{
-			Filename: "winlogon_keys.txt",
-			Name:     "reg",
-			Args: []string{
-				"query",
-				"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon",
-			},
-		},
-		{
-			Filename: "image_file_execution_options.txt",
-			Name:     "reg",
-			Args: []string{
-				"query",
-				"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options",
-				"/s",
-			},
-		},
-		{
-			Filename: "appinit_dlls.txt",
-			Name:     "reg",
-			Args: []string{
-				"query",
-				"HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows",
-				"/v",
-				"AppInit_DLLs",
-			},
-		},
+		{Filename: "winlogon_keys.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"}},
+		{Filename: "image_file_execution_options.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options", "/s"}},
+		{Filename: "appinit_dlls.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows", "/v", "AppInit_DLLs"}},
 	}
-	runCommands(ctx.OutputDir, stdoutCommands, &result)
+	runCommands(ctx.Ctx, ctx.OutputDir, stdoutCommands, &result)
 
-	// Run keys — query each separately so missing keys downgrade
-	// to warnings rather than failing the whole module.
 	runKeys := []struct {
 		filename string
 		key      string
@@ -132,13 +90,12 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 			Errors:    []string{},
 			Warnings:  []string{},
 		}
-		runCommands(ctx.OutputDir, []Command{{
+		runCommands(ctx.Ctx, ctx.OutputDir, []Command{{
 			Filename: filename,
 			Name:     "reg",
 			Args:     []string{"query", k.key, "/s"},
 		}}, &captured)
 
-		// Promote artifacts; demote errors to warnings (missing key is normal).
 		result.Artifacts = append(result.Artifacts, captured.Artifacts...)
 		for _, e := range captured.Errors {
 			result.Warnings = append(result.Warnings,
@@ -146,6 +103,6 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 		}
 	}
 
-	finalize(&result, started)
+	finalize(&result, started, ctx.Ctx)
 	return result
 }

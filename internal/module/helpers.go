@@ -1,6 +1,7 @@
 package module
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -14,19 +15,30 @@ import (
 // Command describes one external command a module wants to run
 // and the file its output should be saved to.
 type Command struct {
-	Filename string   // e.g. "tasklist_verbose.txt"
-	Name     string   // e.g. "tasklist"
-	Args     []string // e.g. ["/v", "/fo", "list"]
+	Filename string
+	Name     string
+	Args     []string
+}
+
+// DirectCommand describes a command whose output goes directly to a file
+// the command itself creates, not captured from stdout.
+type DirectCommand struct {
+	Filename string
+	Name     string
+	Args     []string
 }
 
 // runCommands executes a slice of Commands inside outputDir.
-// For each command it captures stdout+stderr to the named file,
-// hashes the result, and appends to the result's artifacts/errors.
-// Modules pass in their own *Result so this function can update it directly.
-func runCommands(outputDir string, commands []Command, result *Result) {
+// Honors the provided context for cancellation.
+func runCommands(ctx context.Context, outputDir string, commands []Command, result *Result) {
 	for _, c := range commands {
+		if ctx.Err() != nil {
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("%s: skipped (context cancelled: %v)", c.Name, ctx.Err()))
+			continue
+		}
 		outPath := filepath.Join(outputDir, c.Filename)
-		if err := runOne(c.Name, c.Args, outPath); err != nil {
+		if err := runOne(ctx, c.Name, c.Args, outPath); err != nil {
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("%s: %v", c.Name, err))
 			continue
@@ -41,15 +53,73 @@ func runCommands(outputDir string, commands []Command, result *Result) {
 	}
 }
 
-// runOne runs a single command and writes combined output to outPath.
-func runOne(name string, args []string, outPath string) error {
-	cmd := exec.Command(name, args...)
+// runOne runs a single command with context-aware timeout and writes
+// combined output to outPath.
+func runOne(ctx context.Context, name string, args []string, outPath string) error {
+	cmd := exec.CommandContext(ctx, name, args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		_ = os.WriteFile(outPath, out, 0o644)
+		if ctx.Err() != nil {
+			return fmt.Errorf("cancelled: %w", ctx.Err())
+		}
 		return fmt.Errorf("command failed: %w", err)
 	}
 	return os.WriteFile(outPath, out, 0o644)
+}
+
+// runDirectOutputCommands executes commands that write their own output files.
+// Honors the provided context for cancellation.
+func runDirectOutputCommands(ctx context.Context, outputDir string, commands []DirectCommand, result *Result) {
+	for _, c := range commands {
+		if ctx.Err() != nil {
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("%s: skipped (context cancelled: %v)", c.Name, ctx.Err()))
+			continue
+		}
+		outPath := filepath.Join(outputDir, c.Filename)
+
+		args := make([]string, len(c.Args))
+		for i, a := range c.Args {
+			if a == "{OUTPUT}" {
+				args[i] = outPath
+			} else {
+				args[i] = a
+			}
+		}
+
+		cmd := exec.CommandContext(ctx, c.Name, args...)
+		stderr, err := cmd.CombinedOutput()
+		if err != nil {
+			if ctx.Err() != nil {
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("%s: cancelled: %v", c.Name, ctx.Err()))
+			} else {
+				result.Errors = append(result.Errors,
+					fmt.Sprintf("%s: %v (stderr: %s)", c.Name, err, string(stderr)))
+			}
+			continue
+		}
+
+		info, statErr := os.Stat(outPath)
+		if statErr != nil {
+			result.Errors = append(result.Errors,
+				fmt.Sprintf("%s: output file not created: %v", c.Name, statErr))
+			continue
+		}
+		if info.Size() == 0 {
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("%s: output file is empty", c.Filename))
+		}
+
+		artifact, err := describeArtifact(outPath)
+		if err != nil {
+			result.Warnings = append(result.Warnings,
+				fmt.Sprintf("hash %s: %v", c.Filename, err))
+			continue
+		}
+		result.Artifacts = append(result.Artifacts, artifact)
+	}
 }
 
 // describeArtifact returns an Artifact describing a file on disk.
@@ -76,7 +146,6 @@ func sha256File(path string) (string, error) {
 		return "", err
 	}
 	defer f.Close()
-
 	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
@@ -84,11 +153,21 @@ func sha256File(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// finalize sets the EndedAt, Duration, and Status fields on a Result
-// based on the artifacts and errors it accumulated.
-func finalize(result *Result, started time.Time) {
+// finalize sets the EndedAt, Duration, and Status fields on a Result.
+// If ctx was cancelled and no artifacts were produced, status becomes timed_out.
+func finalize(result *Result, started time.Time, ctx context.Context) {
 	result.EndedAt = time.Now().UTC()
 	result.Duration = result.EndedAt.Sub(started)
+
+	// Context cancelled = timeout. If we got any artifacts, partial; if not, timed_out.
+	if ctx.Err() != nil {
+		if len(result.Artifacts) > 0 {
+			result.Status = StatusPartial
+		} else {
+			result.Status = StatusTimedOut
+		}
+		return
+	}
 
 	switch {
 	case len(result.Errors) == 0:
@@ -100,9 +179,7 @@ func finalize(result *Result, started time.Time) {
 	}
 }
 
-// prepareOutputDir creates the module's output directory and returns
-// an error string slice ready to attach to the result on failure.
-// Returns true if the dir was created successfully.
+// prepareOutputDir creates the module's output directory.
 func prepareOutputDir(result *Result, outputDir string, started time.Time) bool {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		result.Errors = append(result.Errors,
@@ -113,61 +190,4 @@ func prepareOutputDir(result *Result, outputDir string, started time.Time) bool 
 		return false
 	}
 	return true
-}
-
-// runDirectOutputCommands executes commands that write their own output files
-// rather than writing to stdout. The command is given the output path as an
-// argument; we verify the file exists afterward and hash it.
-func runDirectOutputCommands(outputDir string, commands []DirectCommand, result *Result) {
-	for _, c := range commands {
-		outPath := filepath.Join(outputDir, c.Filename)
-
-		// Build args by substituting {OUTPUT} placeholder with the real path.
-		args := make([]string, len(c.Args))
-		for i, a := range c.Args {
-			if a == "{OUTPUT}" {
-				args[i] = outPath
-			} else {
-				args[i] = a
-			}
-		}
-
-		cmd := exec.Command(c.Name, args...)
-		stderr, err := cmd.CombinedOutput()
-		if err != nil {
-			result.Errors = append(result.Errors,
-				fmt.Sprintf("%s: %v (stderr: %s)", c.Name, err, string(stderr)))
-			continue
-		}
-
-		// Verify the output file exists and is non-empty.
-		info, statErr := os.Stat(outPath)
-		if statErr != nil {
-			result.Errors = append(result.Errors,
-				fmt.Sprintf("%s: output file not created: %v", c.Name, statErr))
-			continue
-		}
-		if info.Size() == 0 {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("%s: output file is empty", c.Filename))
-		}
-
-		artifact, err := describeArtifact(outPath)
-		if err != nil {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("hash %s: %v", c.Filename, err))
-			continue
-		}
-		result.Artifacts = append(result.Artifacts, artifact)
-	}
-}
-
-// DirectCommand describes a command whose output goes directly to a file
-// the command itself creates, not captured from stdout.
-// Use "{OUTPUT}" as a placeholder in Args; it will be replaced with the
-// full output path at runtime.
-type DirectCommand struct {
-	Filename string
-	Name     string
-	Args     []string
 }

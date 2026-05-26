@@ -1,9 +1,11 @@
 package module
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Priority determines how the engine reacts when a module fails or overruns.
-// This maps to the priority rules from the Acquira spec.
 type Priority string
 
 const (
@@ -17,10 +19,11 @@ const (
 type Status string
 
 const (
-	StatusSuccess Status = "success"
-	StatusPartial Status = "partial"
-	StatusFailed  Status = "failed"
-	StatusSkipped Status = "skipped"
+	StatusSuccess  Status = "success"
+	StatusPartial  Status = "partial"
+	StatusFailed   Status = "failed"
+	StatusSkipped  Status = "skipped"
+	StatusTimedOut Status = "timed_out"
 )
 
 // Artifact is a single file produced by a module.
@@ -44,24 +47,18 @@ type Result struct {
 
 // Module is the contract every collection module must satisfy.
 type Module interface {
-	// Name returns the unique module name, e.g. "system_metadata".
 	Name() string
-
-	// Priority returns this module's priority within the profile.
 	Priority() Priority
-
-	// TimeBudget returns the maximum time this module is allowed to run.
 	TimeBudget() time.Duration
-
-	// Run executes the module. It receives a Context with everything
-	// the module needs (output paths, adapters, cancellation signal).
-	// It returns a Result describing what happened.
 	Run(ctx *Context) Result
 }
 
 // Context is what the engine passes to a module when it runs.
-// For now it only holds the output directory. We'll add more as we need it.
 type Context struct {
 	// OutputDir is where this module should write its artifacts.
 	OutputDir string
+
+	// Ctx carries cancellation and deadline information for the module.
+	// Modules MUST honor ctx.Done() to support the watchdog.
+	Ctx context.Context
 }

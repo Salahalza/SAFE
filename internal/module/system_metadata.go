@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// SystemMetadata collects basic system information from the target.
 type SystemMetadata struct{}
 
 func (m *SystemMetadata) Name() string              { return "system_metadata" }
@@ -35,9 +34,8 @@ func (m *SystemMetadata) Run(ctx *Context) Result {
 		{Filename: "whoami_all.txt", Name: "whoami", Args: []string{"/all"}},
 		{Filename: "ipconfig_all.txt", Name: "ipconfig", Args: []string{"/all"}},
 	}
-	runCommands(ctx.OutputDir, commands, &result)
+	runCommands(ctx.Ctx, ctx.OutputDir, commands, &result)
 
-	// Also write an environment.json with basic runtime info.
 	envPath := filepath.Join(ctx.OutputDir, "environment.json")
 	if err := writeEnvironmentJSON(envPath); err != nil {
 		result.Warnings = append(result.Warnings,
@@ -46,7 +44,7 @@ func (m *SystemMetadata) Run(ctx *Context) Result {
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
 
-	finalize(&result, started)
+	finalize(&result, started, ctx.Ctx)
 	return result
 }
 
@@ -57,7 +55,7 @@ func writeEnvironmentJSON(path string) error {
 		"hostname":     hostname,
 		"collected_at": time.Now().UTC().Format(time.RFC3339),
 		"working_dir":  wd,
-		"is_admin":     isAdmin(),
+		"is_admin":     checkAdminPrivilege(),
 		"os":           runtime.GOOS,
 		"arch":         runtime.GOARCH,
 	}
@@ -66,13 +64,4 @@ func writeEnvironmentJSON(path string) error {
 		return err
 	}
 	return os.WriteFile(path, data, 0o644)
-}
-
-// isAdmin returns true if the current process has administrative privileges.
-// On Windows, this checks if the process can open a handle that requires admin.
-// On other platforms, it returns false (or true for root on Unix).
-func isAdmin() bool {
-	// On Windows, attempt to open the physical drive — admin-only operation.
-	// On non-Windows, fall back to UID check.
-	return checkAdminPrivilege()
 }
