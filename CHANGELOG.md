@@ -28,3 +28,10 @@
 - Added --skip-preflight override for advanced use.
 - Added --list-profiles for discovering available profiles.
 - Exit codes now reflect outcome (0/1/3 for success/failed/degraded).
+
+
+## 2026-05-26 (later)
+- Added per-module manifest (module.json in each module folder).
+- Added case-level manifest (manifest.json + manifest.sha256 at case root).
+- Added `--verify <case-folder>` for offline integrity verification.
+- Verified end-to-end on Windows VM: 56 files hashed and verified successfully.
