@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"acquira/internal/module"
-	"acquira/internal/profile"
+	"saham/internal/module"
+	"saham/internal/profile"
 )
 
 // Engine runs the modules of a profile and collects their results.

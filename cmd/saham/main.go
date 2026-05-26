@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"acquira/internal/engine"
-	"acquira/internal/profile"
+	"saham/internal/engine"
+	"saham/internal/profile"
 )
 
 func main() {

@@ -1,7 +1,7 @@
 # Compiled binaries
 *.exe
-/acquira
-/acquira-*
+/saham
+/saham-*
 
 # OS clutter
 .DS_Store

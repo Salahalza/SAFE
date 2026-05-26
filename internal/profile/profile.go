@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"acquira/internal/module"
+	"saham/internal/module"
 )
 
 // Profile is a named, versioned collection plan.
