@@ -10,22 +10,23 @@ import (
 
 	"sahm/internal/casemeta"
 	"sahm/internal/engine"
+	"sahm/internal/preflight"
 	"sahm/internal/profile"
 )
 
 const sahmVersion = "0.1.0"
 
 func main() {
-	// Parse command-line flags.
 	var (
-		caseID       = flag.String("case", "", "Case identifier (e.g. INC-2026-0418). Required.")
-		analyst      = flag.String("analyst", "", "Analyst name or initials. Required.")
-		target       = flag.String("target", "", "Target identifier (hostname, asset tag, IP). Required.")
-		targetClass  = flag.String("target-class", "unknown", "Target class: workstation, server, or unknown.")
-		profileName  = flag.String("profile", "rapid_triage", "Profile to run.")
-		outputDir    = flag.String("output", "./test-output", "Output base directory.")
-		notes        = flag.String("notes", "", "Optional analyst notes.")
-		listProfiles = flag.Bool("list-profiles", false, "List available profiles and exit.")
+		caseID        = flag.String("case", "", "Case identifier (e.g. INC-2026-0418). Required.")
+		analyst       = flag.String("analyst", "", "Analyst name or initials. Required.")
+		target        = flag.String("target", "", "Target identifier (hostname, asset tag, IP). Required.")
+		targetClass   = flag.String("target-class", "unknown", "Target class: workstation, server, or unknown.")
+		profileName   = flag.String("profile", "rapid_triage", "Profile to run.")
+		outputDir     = flag.String("output", "./test-output", "Output base directory.")
+		notes         = flag.String("notes", "", "Optional analyst notes.")
+		listProfiles  = flag.Bool("list-profiles", false, "List available profiles and exit.")
+		skipPreflight = flag.Bool("skip-preflight", false, "Skip preflight checks (advanced use only).")
 	)
 	flag.Parse()
 
@@ -43,6 +44,24 @@ func main() {
 			fmt.Printf("  %s (v%s) — %s\n", p.Name, p.Version, p.Description)
 		}
 		os.Exit(0)
+	}
+
+	// Preflight checks before anything else touches disk.
+	if !*skipPreflight {
+		checks := []preflight.Check{
+			&preflight.OSCheck{},
+			&preflight.AdminCheck{},
+			&preflight.DiskCheck{OutputPath: *outputDir},
+		}
+		report := preflight.Run(checks)
+		if len(report.Findings) > 0 {
+			fmt.Print(report.Format())
+			fmt.Println()
+		}
+		if report.HasCritical() {
+			fmt.Fprintln(os.Stderr, "Preflight failed with critical findings. Fix the issues above, or rerun with --skip-preflight to override.")
+			os.Exit(2)
+		}
 	}
 
 	// Build case metadata.
