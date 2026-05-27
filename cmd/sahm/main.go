@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"sahm/internal/casemeta"
@@ -31,10 +32,10 @@ func main() {
 		skipPreflight = flag.Bool("skip-preflight", false, "Skip preflight checks (advanced use only).")
 		verifyDir     = flag.String("verify", "", "Verify integrity of a case folder. Specify the case folder path.")
 		tuiMode       = flag.Bool("tui", false, "Launch the interactive terminal UI.")
+		dryRun        = flag.Bool("dry-run", false, "Validate environment without performing collection.")
 	)
 	flag.Parse()
 
-	// Handle --verify mode (offline integrity verification).
 	if *verifyDir != "" {
 		fmt.Printf("Verifying: %s\n\n", *verifyDir)
 		result, err := manifest.Verify(*verifyDir)
@@ -63,7 +64,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Register profiles early so the TUI can show them.
 	registry := profile.NewRegistry()
 	if err := profile.RegisterDefaults(registry); err != nil {
 		fatalf("failed to register profiles: %v", err)
@@ -78,7 +78,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Build the Case from either TUI or CLI flags.
 	var c *casemeta.Case
 
 	if *tuiMode {
@@ -109,13 +108,26 @@ func main() {
 		}
 	}
 
+	// Look up the profile.
+	p, _ := registry.Get(c.ProfileName)
+
+	// Handle --dry-run: validate everything, perform no collection.
+	if *dryRun {
+		passed := runDryRun(c, p, *outputDir, *skipPreflight)
+		if passed {
+			os.Exit(0)
+		}
+		os.Exit(2)
+	}
+
+	// From here on: real collection path.
+
 	if err := c.Validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
 		flag.Usage()
 		os.Exit(2)
 	}
 
-	// Preflight checks before anything else touches disk.
 	if !*skipPreflight {
 		checks := []preflight.Check{
 			&preflight.OSCheck{},
@@ -133,9 +145,8 @@ func main() {
 		}
 	}
 
-	p, err := registry.Get(c.ProfileName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+	if p == nil {
+		fmt.Fprintf(os.Stderr, "Error: profile %q not found\n", c.ProfileName)
 		fmt.Fprintf(os.Stderr, "Run with --list-profiles to see available profiles.\n")
 		os.Exit(2)
 	}
@@ -171,7 +182,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write result.json: %v\n", err)
 	}
 
-	// Write the report first so it's included in the manifest.
 	summary := buildCaseSummary(c, result, sahmVersion)
 	if err := manifest.WriteCaseReport(caseDir, summary); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write case report: %v\n", err)
@@ -199,8 +209,6 @@ func main() {
 	}
 }
 
-// populateTUIProfiles converts the engine's profile registry into the
-// flat list the TUI form expects.
 func populateTUIProfiles(r *profile.Registry) {
 	names := r.Names()
 	opts := make([]tui.ProfileOption, 0, len(names))
@@ -250,6 +258,147 @@ func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string
 		Status:      result.Status,
 		Modules:     mods,
 	}
+}
+
+func runDryRun(c *casemeta.Case, p *profile.Profile, outputDir string, skipPreflight bool) bool {
+	fmt.Println(strings.Repeat("=", 70))
+	fmt.Println("SAHM DRY-RUN")
+	fmt.Println(strings.Repeat("=", 70))
+	fmt.Println()
+	fmt.Println("Validating environment and configuration. No artifacts will be written.")
+	fmt.Println()
+
+	allPassed := true
+
+	fmt.Print("[1] Case metadata: ")
+	if err := c.Validate(); err != nil {
+		fmt.Printf("✗ FAIL — %v\n", err)
+		allPassed = false
+	} else {
+		fmt.Println("✓ OK")
+	}
+
+	fmt.Print("[2] Profile selection: ")
+	if p == nil {
+		fmt.Printf("✗ FAIL — profile %q not found\n", c.ProfileName)
+		allPassed = false
+	} else {
+		fmt.Printf("✓ OK (%s, %d modules, total budget %s)\n",
+			p.Name, len(p.Modules), p.TotalBudget)
+	}
+
+	fmt.Println("[3] Preflight checks:")
+	if skipPreflight {
+		fmt.Println("    (skipped via --skip-preflight)")
+	} else {
+		checks := []preflight.Check{
+			&preflight.OSCheck{},
+			&preflight.AdminCheck{},
+			&preflight.DiskCheck{OutputPath: outputDir},
+		}
+		report := preflight.Run(checks)
+		if len(report.Findings) == 0 {
+			fmt.Println("    ✓ all preflight checks passed silently")
+		} else {
+			for _, f := range report.Findings {
+				marker := "ℹ"
+				if f.Severity == preflight.SeverityWarning {
+					marker = "⚠"
+				} else if f.Severity == preflight.SeverityCritical {
+					marker = "✗"
+				}
+				fmt.Printf("    %s [%s] %s\n", marker, strings.ToUpper(string(f.Severity)), f.Message)
+				if f.Detail != "" {
+					fmt.Printf("           %s\n", f.Detail)
+				}
+			}
+			if report.HasCritical() {
+				allPassed = false
+			}
+		}
+	}
+
+	fmt.Println("[4] External tools:")
+	toolsCheck := &preflight.ToolsCheck{}
+	if finding := toolsCheck.Run(); finding != nil {
+		fmt.Printf("    ✗ [%s] %s\n", strings.ToUpper(string(finding.Severity)), finding.Message)
+		if finding.Detail != "" {
+			fmt.Printf("           %s\n", finding.Detail)
+		}
+		if finding.Severity == preflight.SeverityCritical {
+			allPassed = false
+		}
+	} else {
+		fmt.Printf("    ✓ all %d required tools available on PATH\n", len(preflight.DefaultRapidTriageTools))
+	}
+
+	fmt.Print("[5] Output directory writability: ")
+	if err := checkWritable(outputDir); err != nil {
+		fmt.Printf("✗ FAIL — %v\n", err)
+		allPassed = false
+	} else {
+		fmt.Println("✓ OK")
+	}
+
+	if p != nil {
+		fmt.Println("[6] Collection plan:")
+		for i, m := range p.Modules {
+			fmt.Printf("    %d/%d  %-20s  priority=%-8s  budget=%s\n",
+				i+1, len(p.Modules), m.Name(), m.Priority(), m.TimeBudget())
+		}
+	}
+
+	fmt.Println()
+	fmt.Println(strings.Repeat("=", 70))
+	if allPassed {
+		fmt.Println("DRY-RUN RESULT: ✓ PASSED")
+		fmt.Println()
+		fmt.Println("A real collection should succeed on this target.")
+		fmt.Println("Rerun without --dry-run to perform the collection.")
+	} else {
+		fmt.Println("DRY-RUN RESULT: ✗ FAILED")
+		fmt.Println()
+		fmt.Println("One or more checks failed. Fix the issues above before running")
+		fmt.Println("a real collection, or override with --skip-preflight if appropriate.")
+	}
+	fmt.Println(strings.Repeat("=", 70))
+
+	return allPassed
+}
+
+// checkWritable verifies SAHM could write to the output directory.
+// Truly non-destructive: doesn't create the directory if it doesn't exist.
+// If the directory exists, tests by creating/removing a small file.
+// If it doesn't exist, tests writability of the nearest existing ancestor.
+func checkWritable(dir string) error {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return fmt.Errorf("cannot resolve path: %w", err)
+	}
+
+	// Find the nearest existing ancestor.
+	testDir := absDir
+	for {
+		info, err := os.Stat(testDir)
+		if err == nil && info.IsDir() {
+			break // found an existing directory
+		}
+		parent := filepath.Dir(testDir)
+		if parent == testDir {
+			return fmt.Errorf("no existing ancestor directory found for %s", absDir)
+		}
+		testDir = parent
+	}
+
+	// Test write access on the existing directory.
+	testPath := filepath.Join(testDir, ".sahm-write-test")
+	if err := os.WriteFile(testPath, []byte("test"), 0o644); err != nil {
+		return fmt.Errorf("cannot write in %s: %w", testDir, err)
+	}
+	if err := os.Remove(testPath); err != nil {
+		return fmt.Errorf("cannot remove test file in %s: %w", testDir, err)
+	}
+	return nil
 }
 
 func fatalf(format string, args ...any) {
