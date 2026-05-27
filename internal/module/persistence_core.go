@@ -31,9 +31,24 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 	}
 
 	stdoutCommands := []Command{
-		{Filename: "scheduled_tasks_verbose.txt", Name: "schtasks", Args: []string{"/query", "/fo", "LIST", "/v"}},
-		{Filename: "scheduled_tasks_xml.txt", Name: "schtasks", Args: []string{"/query", "/xml", "ONE"}},
-		{Filename: "services_qc_all.txt", Name: "sc", Args: []string{"query", "state=", "all"}},
+		{
+			Filename: "scheduled_tasks_verbose.txt",
+			Name:     "schtasks",
+			Args:     []string{"/query", "/fo", "LIST", "/v"},
+			Check:    &ContentCheck{MustContain: []string{"TaskName"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "scheduled_tasks_xml.txt",
+			Name:     "schtasks",
+			Args:     []string{"/query", "/xml", "ONE"},
+			Check:    &ContentCheck{MustContain: []string{"<Task"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "services_qc_all.txt",
+			Name:     "sc",
+			Args:     []string{"query", "state=", "all"},
+			Check:    &ContentCheck{MustContain: []string{"SERVICE_NAME"}, MustNotContain: commonErrorSignatures},
+		},
 		{
 			Filename:   "wmi_event_consumers.txt",
 			Name:       "powershell",
@@ -65,8 +80,18 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 			},
 			SkipChecks: true,
 		},
-		{Filename: "winlogon_keys.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"}},
-		{Filename: "image_file_execution_options.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options", "/s"}},
+		{
+			Filename: "winlogon_keys.txt",
+			Name:     "reg",
+			Args:     []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon"},
+			Check:    &ContentCheck{MustContain: []string{"Winlogon"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "image_file_execution_options.txt",
+			Name:     "reg",
+			Args:     []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Image File Execution Options", "/s"},
+			Check:    &ContentCheck{MustContain: []string{"Image File Execution Options"}, MustNotContain: commonErrorSignatures},
+		},
 		{Filename: "appinit_dlls.txt", Name: "reg", Args: []string{"query", "HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Windows", "/v", "AppInit_DLLs"}, SkipChecks: true},
 	}
 	runCommands(ctx.Ctx, ctx.OutputDir, stdoutCommands, &result)
@@ -105,8 +130,6 @@ func (m *PersistenceCore) Run(ctx *Context) Result {
 		}
 		result.Artifacts = append(result.Artifacts, artifact)
 
-		// Run key states are informational — empty keys and missing keys are
-		// normal observations, not warnings.
 		switch state {
 		case runKeyMissing:
 			result.AddInfo(k.filename, "key does not exist on this target")

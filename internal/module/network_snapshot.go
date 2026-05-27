@@ -14,7 +14,7 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 		ModuleName: m.Name(),
 		StartedAt:  started,
 		Artifacts:  []Artifact{},
-		Warnings:   []string{},
+		Findings:   []Finding{},
 		Errors:     []string{},
 	}
 
@@ -23,12 +23,37 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 	}
 
 	commands := []Command{
-		{Filename: "netstat_abno.txt", Name: "netstat", Args: []string{"-abno"}},
-		{Filename: "netstat_ano.txt", Name: "netstat", Args: []string{"-ano"}},
-		{Filename: "netstat_rn.txt", Name: "netstat", Args: []string{"-rn"}},
-		{Filename: "arp_a.txt", Name: "arp", Args: []string{"-a"}},
-		{Filename: "route_print.txt", Name: "route", Args: []string{"print"}},
-		{Filename: "dns_cache.txt", Name: "ipconfig", Args: []string{"/displaydns"}},
+		{
+			Filename: "netstat_abno.txt",
+			Name:     "netstat",
+			Args:     []string{"-abno"},
+			Check:    &ContentCheck{MustContain: []string{"Proto"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "netstat_ano.txt",
+			Name:     "netstat",
+			Args:     []string{"-ano"},
+			Check:    &ContentCheck{MustContain: []string{"Proto"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "netstat_rn.txt",
+			Name:     "netstat",
+			Args:     []string{"-rn"},
+			Check:    &ContentCheck{MustContain: []string{"Interface List"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "arp_a.txt",
+			Name:     "arp",
+			Args:     []string{"-a"},
+			Check:    &ContentCheck{MustContain: []string{"Interface"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "route_print.txt",
+			Name:     "route",
+			Args:     []string{"print"},
+			Check:    &ContentCheck{MustContain: []string{"Interface List"}, MustNotContain: commonErrorSignatures},
+		},
+		{Filename: "dns_cache.txt", Name: "ipconfig", Args: []string{"/displaydns"}, SkipChecks: true},
 		{
 			Filename: "tcp_connections_powershell.txt",
 			Name:     "powershell",
@@ -37,6 +62,7 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 				"-Command",
 				"Get-NetTCPConnection | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,State,OwningProcess,CreationTime | Format-List",
 			},
+			Check: &ContentCheck{MustContain: []string{"LocalAddress"}, MustNotContain: commonErrorSignatures},
 		},
 		{
 			Filename: "udp_endpoints_powershell.txt",
@@ -46,6 +72,7 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 				"-Command",
 				"Get-NetUDPEndpoint | Select-Object LocalAddress,LocalPort,OwningProcess,CreationTime | Format-List",
 			},
+			Check: &ContentCheck{MustContain: []string{"LocalAddress"}, MustNotContain: commonErrorSignatures},
 		},
 		{
 			Filename: "firewall_rules_enabled.txt",
@@ -55,11 +82,13 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 				"-Command",
 				"Get-NetFirewallRule -Enabled True | Select-Object DisplayName,Direction,Action,Profile,Enabled | Format-List",
 			},
+			Check: &ContentCheck{MustContain: []string{"DisplayName"}, MustNotContain: commonErrorSignatures},
 		},
 		{
 			Filename: "firewall_profiles.txt",
 			Name:     "powershell",
 			Args:     []string{"-NoProfile", "-Command", "Get-NetFirewallProfile | Format-List"},
+			Check:    &ContentCheck{MustContain: []string{"Enabled"}, MustNotContain: commonErrorSignatures},
 		},
 		{
 			Filename: "network_adapters.txt",
@@ -69,6 +98,7 @@ func (m *NetworkSnapshot) Run(ctx *Context) Result {
 				"-Command",
 				"Get-NetAdapter | Format-List; Get-NetIPAddress | Format-List",
 			},
+			Check: &ContentCheck{MustContain: []string{"InterfaceAlias"}, MustNotContain: commonErrorSignatures},
 		},
 	}
 	runCommands(ctx.Ctx, ctx.OutputDir, commands, &result)

@@ -14,7 +14,7 @@ func (m *ProcessSnapshot) Run(ctx *Context) Result {
 		ModuleName: m.Name(),
 		StartedAt:  started,
 		Artifacts:  []Artifact{},
-		Warnings:   []string{},
+		Findings:   []Finding{},
 		Errors:     []string{},
 	}
 
@@ -23,8 +23,18 @@ func (m *ProcessSnapshot) Run(ctx *Context) Result {
 	}
 
 	commands := []Command{
-		{Filename: "tasklist_verbose.txt", Name: "tasklist", Args: []string{"/v", "/fo", "list"}},
-		{Filename: "tasklist_services.txt", Name: "tasklist", Args: []string{"/svc", "/fo", "list"}},
+		{
+			Filename: "tasklist_verbose.txt",
+			Name:     "tasklist",
+			Args:     []string{"/v", "/fo", "list"},
+			Check:    &ContentCheck{MustContain: []string{"Image Name"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "tasklist_services.txt",
+			Name:     "tasklist",
+			Args:     []string{"/svc", "/fo", "list"},
+			Check:    &ContentCheck{MustContain: []string{"Image Name"}, MustNotContain: commonErrorSignatures},
+		},
 		{
 			Filename: "processes_powershell.txt",
 			Name:     "powershell",
@@ -33,6 +43,7 @@ func (m *ProcessSnapshot) Run(ctx *Context) Result {
 				"-Command",
 				"Get-CimInstance Win32_Process | Select-Object Name,ProcessId,ParentProcessId,CommandLine,ExecutablePath,CreationDate | Format-List",
 			},
+			Check: &ContentCheck{MustContain: []string{"ProcessId"}, MustNotContain: commonErrorSignatures},
 		},
 		{
 			Filename: "services_state.txt",
@@ -42,6 +53,7 @@ func (m *ProcessSnapshot) Run(ctx *Context) Result {
 				"-Command",
 				"Get-CimInstance Win32_Service | Select-Object Name,DisplayName,State,StartMode,PathName,StartName | Format-List",
 			},
+			Check: &ContentCheck{MustContain: []string{"DisplayName"}, MustNotContain: commonErrorSignatures},
 		},
 	}
 	runCommands(ctx.Ctx, ctx.OutputDir, commands, &result)

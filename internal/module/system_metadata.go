@@ -20,7 +20,7 @@ func (m *SystemMetadata) Run(ctx *Context) Result {
 		ModuleName: m.Name(),
 		StartedAt:  started,
 		Artifacts:  []Artifact{},
-		Warnings:   []string{},
+		Findings:   []Finding{},
 		Errors:     []string{},
 	}
 
@@ -29,17 +29,30 @@ func (m *SystemMetadata) Run(ctx *Context) Result {
 	}
 
 	commands := []Command{
-		{Filename: "systeminfo.txt", Name: "systeminfo"},
+		{
+			Filename: "systeminfo.txt",
+			Name:     "systeminfo",
+			Check:    &ContentCheck{MustContain: []string{"OS Name"}, MustNotContain: commonErrorSignatures},
+		},
 		{Filename: "hostname.txt", Name: "hostname"},
-		{Filename: "whoami_all.txt", Name: "whoami", Args: []string{"/all"}},
-		{Filename: "ipconfig_all.txt", Name: "ipconfig", Args: []string{"/all"}},
+		{
+			Filename: "whoami_all.txt",
+			Name:     "whoami",
+			Args:     []string{"/all"},
+			Check:    &ContentCheck{MustContain: []string{"USER INFORMATION"}, MustNotContain: commonErrorSignatures},
+		},
+		{
+			Filename: "ipconfig_all.txt",
+			Name:     "ipconfig",
+			Args:     []string{"/all"},
+			Check:    &ContentCheck{MustContain: []string{"Windows IP Configuration"}, MustNotContain: commonErrorSignatures},
+		},
 	}
 	runCommands(ctx.Ctx, ctx.OutputDir, commands, &result)
 
 	envPath := filepath.Join(ctx.OutputDir, "environment.json")
 	if err := writeEnvironmentJSON(envPath); err != nil {
-		result.Warnings = append(result.Warnings,
-			"environment.json: "+err.Error())
+		result.AddWarning("environment.json", err.Error())
 	} else if artifact, err := describeArtifact(envPath); err == nil {
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
