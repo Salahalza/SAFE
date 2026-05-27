@@ -73,3 +73,23 @@ Major session. Foundation work for v1.0.
 - persistence_core: run-key queries now distinguish empty keys from missing keys.
 - Each run-key artifact is self-describing with explicit state, header, and timestamp.
 - Forensic statement is preserved even when no values are present.
+
+
+
+## 2026-05-27
+
+- TUI now integrates with the collection engine — collection runs after confirmation.
+- Added profile selection radio in the TUI form.
+- TUI profiles populated dynamically from the profile registry.
+- Verified TUI path produces identical output to CLI path (48 artifacts, manifest, report).
+
+
+
+## 2026-05-27
+
+- Added severity levels to module findings: info, warning, critical.
+- Reclassified normal observations (Sysmon absent, empty run keys) as info-only.
+- Module status no longer downgraded by info-level findings.
+- Case report shows separated severity counts and ℹ/⚠/✗ markers per finding.
+- Inspection priority section only lists modules with warning/critical findings.
+- Engine output line now shows info/warning/critical breakdown instead of flat warnings count.
