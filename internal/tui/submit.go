@@ -12,6 +12,12 @@ func (m model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch key.String() {
 		case "y", "Y", "enter":
 			m.submitted = true
+			// If runner is set, transition to progress screen and start collection.
+			if m.runner != nil && m.registry != nil {
+				m.screen = screenProgress
+				return m, m.startCollectionCmd()
+			}
+			// Otherwise (legacy path with no runner), just quit so main.go runs collection.
 			return m, tea.Quit
 		case "n", "N", "esc":
 			m.screen = screenForm

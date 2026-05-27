@@ -37,6 +37,7 @@ func main() {
 	)
 	flag.Parse()
 
+	// --- verify mode ---
 	if *verifyDir != "" {
 		fmt.Printf("Verifying: %s\n\n", *verifyDir)
 		result, err := manifest.Verify(*verifyDir)
@@ -79,38 +80,65 @@ func main() {
 		os.Exit(0)
 	}
 
-	var c *casemeta.Case
-
+	// --- TUI mode: collection runs inside the TUI ---
 	if *tuiMode {
 		populateTUIProfiles(registry)
 
-		tuiCase, err := tui.Run()
+		runFn := func(c *casemeta.Case, p *profile.Profile, progressCh chan<- engine.ProgressEvent) engine.CaseResult {
+			c.SAHMVersion = sahmVersion
+			caseDir := filepath.Join(*outputDir, c.CaseDirName())
+			_ = c.WriteToCase(caseDir)
+			eng := engine.New(caseDir)
+			eng.ProgressCh = progressCh
+			result := eng.Run(p)
+
+			resultPath := filepath.Join(caseDir, "result.json")
+			if data, err := json.MarshalIndent(result, "", "  "); err == nil {
+				_ = os.WriteFile(resultPath, data, 0o644)
+			}
+			summary := buildCaseSummary(c, result, sahmVersion)
+			_ = manifest.WriteCaseReport(caseDir, summary)
+			_ = manifest.WriteCaseManifest(caseDir, c.CaseID)
+			return result
+		}
+
+		runRes, err := tui.RunWithCollection(registry, runFn)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
 			os.Exit(1)
 		}
-		if tuiCase == nil {
+		if runRes == nil {
 			fmt.Println("Collection cancelled.")
 			os.Exit(0)
 		}
-		tuiCase.CreatedAt = time.Now().UTC()
-		tuiCase.SAHMVersion = sahmVersion
-		c = tuiCase
-	} else {
-		c = &casemeta.Case{
-			CaseID:           *caseID,
-			Analyst:          *analyst,
-			TargetIdentifier: *target,
-			TargetClass:      *targetClass,
-			Notes:            *notes,
-			ProfileName:      *profileName,
-			CreatedAt:        time.Now().UTC(),
-			SAHMVersion:      sahmVersion,
+		if runRes.Collection != nil {
+			switch runRes.Collection.Result.Status {
+			case "failed":
+				os.Exit(1)
+			case "degraded":
+				os.Exit(3)
+			default:
+				os.Exit(0)
+			}
 		}
+		os.Exit(0)
+	}
+
+	// --- CLI mode: build case from flags ---
+	c := &casemeta.Case{
+		CaseID:           *caseID,
+		Analyst:          *analyst,
+		TargetIdentifier: *target,
+		TargetClass:      *targetClass,
+		Notes:            *notes,
+		ProfileName:      *profileName,
+		CreatedAt:        time.Now().UTC(),
+		SAHMVersion:      sahmVersion,
 	}
 
 	p, _ := registry.Get(c.ProfileName)
 
+	// --- dry-run ---
 	if *dryRun {
 		passed := runDryRun(c, p, *outputDir, *skipPreflight)
 		if passed {
