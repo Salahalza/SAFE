@@ -70,8 +70,6 @@ func DiscoverUserProfiles() ([]UserProfile, error) {
 			continue
 		}
 
-		// ProfileImagePath in the registry often contains unexpanded environment
-		// variables like %systemroot%. Expand them before any filesystem ops.
 		profilePath = expandWindowsEnvVars(profilePath)
 
 		builtin := isBuiltinSID(sid)
