@@ -10,6 +10,7 @@ import (
 
 // Run launches the TUI. Returns the captured case metadata on success.
 // Returns nil if the user quit without completing the form.
+// Note: CreatedAt and SAHMVersion are NOT set by the TUI — main.go fills those in.
 func Run() (*casemeta.Case, error) {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	finalModel, err := p.Run()
@@ -28,7 +29,6 @@ func Run() (*casemeta.Case, error) {
 	return nil, nil
 }
 
-// screen is which "page" the user is on.
 type screen int
 
 const (
@@ -37,7 +37,6 @@ const (
 	screenConfirm
 )
 
-// model is the entire UI state.
 type model struct {
 	screen    screen
 	form      formModel
@@ -58,7 +57,6 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// Universal quit: Ctrl+C always exits.
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
@@ -87,14 +85,13 @@ func (m model) View() string {
 	return ""
 }
 
-// buildCase converts the captured form data into a casemeta.Case.
-// Used after the user confirms submission.
 func (m model) buildCase() *casemeta.Case {
 	return &casemeta.Case{
 		CaseID:           m.form.caseID.Value(),
 		Analyst:          m.form.analyst.Value(),
 		TargetIdentifier: m.form.target.Value(),
 		TargetClass:      m.form.targetClass,
+		ProfileName:      m.form.profile,
 		Notes:            m.form.notes.Value(),
 	}
 }

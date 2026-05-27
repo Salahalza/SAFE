@@ -1,4 +1,4 @@
-# Acquira Changelog
+# SAHM Changelog
 
 ## 2026-04-24
 - First end-to-end run on Windows 11 VM verified.
@@ -30,7 +30,7 @@
 - Exit codes now reflect outcome (0/1/3 for success/failed/degraded).
 
 
-## 2026-05-26 (later)
+## 2026-05-26
 - Added per-module manifest (module.json in each module folder).
 - Added case-level manifest (manifest.json + manifest.sha256 at case root).
 - Added `--verify <case-folder>` for offline integrity verification.
@@ -56,3 +56,20 @@ Major session. Foundation work for v1.0.
 - Fixed disk preflight to work when output directory doesn't exist yet.
 - Exit codes now reflect outcome: 0/1/3 for success/failed/degraded.
 - Verified end-to-end on Windows 11 VM: 48 artifacts, manifest, verification all passing.
+
+
+## 2026-05-26
+
+- Added content verification: scan stdout-captured output for known error signatures.
+- Added per-command MinSize: drop empty stubs (e.g., absent registry keys) with explicit warnings.
+- Added case_report.txt: human-readable case summary with inspection priorities.
+- Report hashed into manifest for tamper detection.
+- Fixed: warnings count now displayed in engine module output line.
+
+
+
+## 2026-05-26
+
+- persistence_core: run-key queries now distinguish empty keys from missing keys.
+- Each run-key artifact is self-describing with explicit state, header, and timestamp.
+- Forensic statement is preserved even when no values are present.

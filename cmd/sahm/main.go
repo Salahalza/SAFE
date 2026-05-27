@@ -20,9 +20,9 @@ const sahmVersion = "0.1.0"
 
 func main() {
 	var (
-		caseID        = flag.String("case", "", "Case identifier (e.g. INC-2026-0418). Required.")
-		analyst       = flag.String("analyst", "", "Analyst name or initials. Required.")
-		target        = flag.String("target", "", "Target identifier (hostname, asset tag, IP). Required.")
+		caseID        = flag.String("case", "", "Case identifier (e.g. INC-2026-0418). Required unless --tui.")
+		analyst       = flag.String("analyst", "", "Analyst name or initials. Required unless --tui.")
+		target        = flag.String("target", "", "Target identifier (hostname, asset tag, IP). Required unless --tui.")
 		targetClass   = flag.String("target-class", "unknown", "Target class: workstation, server, or unknown.")
 		profileName   = flag.String("profile", "rapid_triage", "Profile to run.")
 		outputDir     = flag.String("output", "./test-output", "Output base directory.")
@@ -34,28 +34,7 @@ func main() {
 	)
 	flag.Parse()
 
-	if *tuiMode {
-		c, err := tui.Run()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
-			os.Exit(1)
-		}
-		if c == nil {
-			fmt.Println("Collection cancelled.")
-			os.Exit(0)
-		}
-		fmt.Println("Case metadata captured:")
-		fmt.Printf("  Case ID:    %s\n", c.CaseID)
-		fmt.Printf("  Analyst:    %s\n", c.Analyst)
-		fmt.Printf("  Target:     %s (%s)\n", c.TargetIdentifier, c.TargetClass)
-		if c.Notes != "" {
-			fmt.Printf("  Notes:      %s\n", c.Notes)
-		}
-		fmt.Println()
-		fmt.Println("Next step: integration with collection engine.")
-		os.Exit(0)
-	}
-
+	// Handle --verify mode (offline integrity verification).
 	if *verifyDir != "" {
 		fmt.Printf("Verifying: %s\n\n", *verifyDir)
 		result, err := manifest.Verify(*verifyDir)
@@ -84,6 +63,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Register profiles early so the TUI can show them.
 	registry := profile.NewRegistry()
 	if err := profile.RegisterDefaults(registry); err != nil {
 		fatalf("failed to register profiles: %v", err)
@@ -98,6 +78,44 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Build the Case from either TUI or CLI flags.
+	var c *casemeta.Case
+
+	if *tuiMode {
+		populateTUIProfiles(registry)
+
+		tuiCase, err := tui.Run()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
+			os.Exit(1)
+		}
+		if tuiCase == nil {
+			fmt.Println("Collection cancelled.")
+			os.Exit(0)
+		}
+		tuiCase.CreatedAt = time.Now().UTC()
+		tuiCase.SAHMVersion = sahmVersion
+		c = tuiCase
+	} else {
+		c = &casemeta.Case{
+			CaseID:           *caseID,
+			Analyst:          *analyst,
+			TargetIdentifier: *target,
+			TargetClass:      *targetClass,
+			Notes:            *notes,
+			ProfileName:      *profileName,
+			CreatedAt:        time.Now().UTC(),
+			SAHMVersion:      sahmVersion,
+		}
+	}
+
+	if err := c.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
+		flag.Usage()
+		os.Exit(2)
+	}
+
+	// Preflight checks before anything else touches disk.
 	if !*skipPreflight {
 		checks := []preflight.Check{
 			&preflight.OSCheck{},
@@ -113,23 +131,6 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Preflight failed with critical findings. Fix the issues above, or rerun with --skip-preflight to override.")
 			os.Exit(2)
 		}
-	}
-
-	c := &casemeta.Case{
-		CaseID:           *caseID,
-		Analyst:          *analyst,
-		TargetIdentifier: *target,
-		TargetClass:      *targetClass,
-		Notes:            *notes,
-		ProfileName:      *profileName,
-		CreatedAt:        time.Now().UTC(),
-		SAHMVersion:      sahmVersion,
-	}
-
-	if err := c.Validate(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
-		flag.Usage()
-		os.Exit(2)
 	}
 
 	p, err := registry.Get(c.ProfileName)
@@ -170,6 +171,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write result.json: %v\n", err)
 	}
 
+	// Write the report first so it's included in the manifest.
 	summary := buildCaseSummary(c, result, sahmVersion)
 	if err := manifest.WriteCaseReport(caseDir, summary); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write case report: %v\n", err)
@@ -194,6 +196,23 @@ func main() {
 		os.Exit(3)
 	default:
 		os.Exit(0)
+	}
+}
+
+// populateTUIProfiles converts the engine's profile registry into the
+// flat list the TUI form expects.
+func populateTUIProfiles(r *profile.Registry) {
+	names := r.Names()
+	opts := make([]tui.ProfileOption, 0, len(names))
+	for _, n := range names {
+		p, _ := r.Get(n)
+		opts = append(opts, tui.ProfileOption{
+			Value: p.Name,
+			Label: p.Description,
+		})
+	}
+	if len(opts) > 0 {
+		tui.AvailableProfiles = opts
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// updateConfirm handles the final confirmation screen.
 func (m model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if key, ok := msg.(tea.KeyMsg); ok {
 		switch key.String() {
@@ -32,6 +31,7 @@ func (m model) confirmView() string {
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Analyst:    "), m.form.analyst.Value()))
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Target:     "), m.form.target.Value()))
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Class:      "), m.form.targetClass))
+	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Profile:    "), m.form.profile))
 	if m.form.notes.Value() != "" {
 		b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Notes:      "), m.form.notes.Value()))
 	}

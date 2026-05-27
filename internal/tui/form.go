@@ -10,7 +10,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// formField identifies which input is currently focused.
 type formField int
 
 const (
@@ -18,12 +17,12 @@ const (
 	fieldAnalyst
 	fieldTarget
 	fieldTargetClass
+	fieldProfile
 	fieldNotes
 	fieldSubmit
 	numFormFields
 )
 
-// targetClassOption is one selectable value for the target class radio.
 type targetClassOption struct {
 	value string
 	label string
@@ -35,13 +34,25 @@ var targetClassOptions = []targetClassOption{
 	{"unknown", "Unknown / Other"},
 }
 
-// formModel holds the state of the case metadata form.
+// ProfileOption is one selectable profile shown in the TUI form.
+// Exported so main.go can populate AvailableProfiles before launching.
+type ProfileOption struct {
+	Value string
+	Label string
+}
+
+// AvailableProfiles is set by main.go before launching the TUI.
+var AvailableProfiles = []ProfileOption{
+	{Value: "rapid_triage", Label: "Rapid Triage"},
+}
+
 type formModel struct {
 	caseID      textinput.Model
 	analyst     textinput.Model
 	target      textinput.Model
 	notes       textinput.Model
-	targetClass string // index into targetClassOptions
+	targetClass string
+	profile     string
 	focused     formField
 	errMessage  string
 }
@@ -55,18 +66,23 @@ func newFormModel() formModel {
 		return t
 	}
 
+	defaultProfile := "rapid_triage"
+	if len(AvailableProfiles) > 0 {
+		defaultProfile = AvailableProfiles[0].Value
+	}
+
 	f := formModel{
 		caseID:      mk("INC-2026-0418"),
 		analyst:     mk("Your name or initials"),
 		target:      mk("Hostname, asset tag, or IP"),
 		notes:       mk("Optional notes about this collection"),
 		targetClass: "workstation",
+		profile:     defaultProfile,
 		focused:     fieldCaseID,
 	}
 	return f
 }
 
-// focus sets focus to the given field, blurring all others.
 func (f *formModel) focus(field formField) {
 	f.caseID.Blur()
 	f.analyst.Blur()
@@ -86,13 +102,11 @@ func (f *formModel) focus(field formField) {
 	}
 }
 
-// nextField moves focus forward, wrapping at the end.
 func (f *formModel) nextField() {
 	next := (f.focused + 1) % numFormFields
 	f.focus(next)
 }
 
-// prevField moves focus backward, wrapping at the start.
 func (f *formModel) prevField() {
 	prev := f.focused - 1
 	if prev < 0 {
@@ -101,7 +115,6 @@ func (f *formModel) prevField() {
 	f.focus(prev)
 }
 
-// validate runs Case.Validate on the current form values.
 func (f *formModel) validate() error {
 	c := &casemeta.Case{
 		CaseID:           f.caseID.Value(),
@@ -112,7 +125,6 @@ func (f *formModel) validate() error {
 	return c.Validate()
 }
 
-// updateForm handles all form interaction.
 func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -129,7 +141,6 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.form.prevField()
 			return m, nil
 		case "enter":
-			// On submit button, validate and advance.
 			if m.form.focused == fieldSubmit {
 				if err := m.form.validate(); err != nil {
 					m.form.errMessage = err.Error()
@@ -139,11 +150,9 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.screen = screenConfirm
 				return m, nil
 			}
-			// On a text field, enter moves to the next field.
 			m.form.nextField()
 			return m, nil
 		case "left", "right":
-			// Only meaningful on target class radio.
 			if m.form.focused == fieldTargetClass {
 				idx := indexOfTargetClass(m.form.targetClass)
 				if msg.String() == "left" {
@@ -157,10 +166,22 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.form.targetClass = targetClassOptions[idx].value
 				return m, nil
 			}
+			if m.form.focused == fieldProfile {
+				idx := indexOfProfile(m.form.profile)
+				if msg.String() == "left" {
+					idx--
+					if idx < 0 {
+						idx = len(AvailableProfiles) - 1
+					}
+				} else {
+					idx = (idx + 1) % len(AvailableProfiles)
+				}
+				m.form.profile = AvailableProfiles[idx].Value
+				return m, nil
+			}
 		}
 	}
 
-	// Pass the message to the currently focused text input.
 	switch m.form.focused {
 	case fieldCaseID:
 		m.form.caseID, cmd = m.form.caseID.Update(msg)
@@ -184,7 +205,15 @@ func indexOfTargetClass(value string) int {
 	return 0
 }
 
-// View renders the form.
+func indexOfProfile(value string) int {
+	for i, o := range AvailableProfiles {
+		if o.Value == value {
+			return i
+		}
+	}
+	return 0
+}
+
 func (f formModel) View() string {
 	var b strings.Builder
 
@@ -195,6 +224,7 @@ func (f formModel) View() string {
 	b.WriteString(f.renderTextField("Analyst", f.analyst, fieldAnalyst))
 	b.WriteString(f.renderTextField("Target", f.target, fieldTarget))
 	b.WriteString(f.renderTargetClass())
+	b.WriteString(f.renderProfile())
 	b.WriteString(f.renderTextField("Notes", f.notes, fieldNotes))
 	b.WriteString(f.renderSubmit())
 
@@ -203,7 +233,7 @@ func (f formModel) View() string {
 		b.WriteString("\n")
 	}
 
-	hint := hintStyle.Render("\nTab/↓ next  •  Shift+Tab/↑ prev  •  ←/→ change target class  •  Esc back  •  Ctrl+C quit")
+	hint := hintStyle.Render("\nTab/↓ next  •  Shift+Tab/↑ prev  •  ←/→ change selection  •  Esc back  •  Ctrl+C quit")
 	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())
@@ -232,6 +262,29 @@ func (f formModel) renderTargetClass() string {
 		}
 		text := marker + " " + o.label
 		if f.focused == fieldTargetClass && o.value == f.targetClass {
+			text = lipgloss.NewStyle().Foreground(lipgloss.Color("#7DD3FC")).Render(text)
+		}
+		parts = append(parts, text)
+	}
+
+	return label + "\n" + strings.Join(parts, "   ") + "\n\n"
+}
+
+func (f formModel) renderProfile() string {
+	style := labelStyle
+	if f.focused == fieldProfile {
+		style = focusedLabelStyle
+	}
+	label := style.Render("Profile")
+
+	var parts []string
+	for _, o := range AvailableProfiles {
+		marker := "( )"
+		if o.Value == f.profile {
+			marker = "(•)"
+		}
+		text := marker + " " + o.Label
+		if f.focused == fieldProfile && o.Value == f.profile {
 			text = lipgloss.NewStyle().Foreground(lipgloss.Color("#7DD3FC")).Render(text)
 		}
 		parts = append(parts, text)
