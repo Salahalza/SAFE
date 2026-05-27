@@ -12,6 +12,7 @@ import (
 	"sahm/internal/casemeta"
 	"sahm/internal/engine"
 	"sahm/internal/manifest"
+	"sahm/internal/pathfinder"
 	"sahm/internal/preflight"
 	"sahm/internal/profile"
 	"sahm/internal/tui"
@@ -108,10 +109,8 @@ func main() {
 		}
 	}
 
-	// Look up the profile.
 	p, _ := registry.Get(c.ProfileName)
 
-	// Handle --dry-run: validate everything, perform no collection.
 	if *dryRun {
 		passed := runDryRun(c, p, *outputDir, *skipPreflight)
 		if passed {
@@ -119,8 +118,6 @@ func main() {
 		}
 		os.Exit(2)
 	}
-
-	// From here on: real collection path.
 
 	if err := c.Validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n\n", err)
@@ -348,6 +345,42 @@ func runDryRun(c *casemeta.Case, p *profile.Profile, outputDir string, skipPrefl
 		}
 	}
 
+	fmt.Println("[7] Environment paths:")
+	envPaths := pathfinder.ResolveEnvironmentPaths()
+	if missing := envPaths.Validate(); len(missing) > 0 {
+		fmt.Printf("    ⚠ missing environment variables: %s\n", strings.Join(missing, ", "))
+	} else {
+		fmt.Println("    ✓ all critical environment paths present")
+	}
+	fmt.Printf("       SystemRoot:    %s\n", envPaths.SystemRoot)
+	fmt.Printf("       ProgramFiles:  %s\n", envPaths.ProgramFiles)
+	fmt.Printf("       ProgramData:   %s\n", envPaths.ProgramData)
+	fmt.Printf("       UserProfile:   %s\n", envPaths.UserProfile)
+
+	fmt.Println("[8] User profile discovery:")
+	profiles, err := pathfinder.DiscoverUserProfiles()
+	if err != nil {
+		fmt.Printf("    ⚠ could not enumerate user profiles: %v\n", err)
+	} else if len(profiles) == 0 {
+		fmt.Println("    ⚠ no user profiles found")
+	} else {
+		humanCount := 0
+		for _, p := range profiles {
+			if !p.IsBuiltin {
+				humanCount++
+			}
+		}
+		fmt.Printf("    ✓ %d profile(s) discovered (%d human, %d built-in)\n",
+			len(profiles), humanCount, len(profiles)-humanCount)
+		for _, p := range profiles {
+			label := "human"
+			if p.IsBuiltin {
+				label = "built-in"
+			}
+			fmt.Printf("       [%s] %s\n", label, p.ProfilePath)
+		}
+	}
+
 	fmt.Println()
 	fmt.Println(strings.Repeat("=", 70))
 	if allPassed {
@@ -366,22 +399,17 @@ func runDryRun(c *casemeta.Case, p *profile.Profile, outputDir string, skipPrefl
 	return allPassed
 }
 
-// checkWritable verifies SAHM could write to the output directory.
-// Truly non-destructive: doesn't create the directory if it doesn't exist.
-// If the directory exists, tests by creating/removing a small file.
-// If it doesn't exist, tests writability of the nearest existing ancestor.
 func checkWritable(dir string) error {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return fmt.Errorf("cannot resolve path: %w", err)
 	}
 
-	// Find the nearest existing ancestor.
 	testDir := absDir
 	for {
 		info, err := os.Stat(testDir)
 		if err == nil && info.IsDir() {
-			break // found an existing directory
+			break
 		}
 		parent := filepath.Dir(testDir)
 		if parent == testDir {
@@ -390,7 +418,6 @@ func checkWritable(dir string) error {
 		testDir = parent
 	}
 
-	// Test write access on the existing directory.
 	testPath := filepath.Join(testDir, ".sahm-write-test")
 	if err := os.WriteFile(testPath, []byte("test"), 0o644); err != nil {
 		return fmt.Errorf("cannot write in %s: %w", testDir, err)
