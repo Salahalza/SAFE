@@ -219,12 +219,20 @@ func populateTUIProfiles(r *profile.Registry) {
 func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string) manifest.CaseSummary {
 	mods := make([]manifest.ModuleSummary, 0, len(result.Modules))
 	for _, m := range result.Modules {
+		findings := make([]manifest.FindingSummary, 0, len(m.Findings))
+		for _, f := range m.Findings {
+			findings = append(findings, manifest.FindingSummary{
+				Severity: string(f.Severity),
+				Source:   f.Source,
+				Message:  f.Message,
+			})
+		}
 		mods = append(mods, manifest.ModuleSummary{
 			Name:          m.ModuleName,
 			Status:        string(m.Status),
 			Duration:      m.Duration,
 			ArtifactCount: len(m.Artifacts),
-			Warnings:      m.Warnings,
+			Findings:      findings,
 			Errors:        m.Errors,
 		})
 	}

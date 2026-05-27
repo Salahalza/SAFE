@@ -68,10 +68,10 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 
 		result.Modules = append(result.Modules, modResult)
 
-		fmt.Printf("      status=%s duration=%s artifacts=%d warnings=%d errors=%d\n",
+		info, warning, critical := modResult.CountBySeverity()
+		fmt.Printf("      status=%s duration=%s artifacts=%d info=%d warning=%d critical=%d errors=%d\n",
 			modResult.Status, modResult.Duration,
-			len(modResult.Artifacts), len(modResult.Warnings), len(modResult.Errors))
-
+			len(modResult.Artifacts), info, warning, critical, len(modResult.Errors))
 		if _, err := manifest.WriteModuleManifest(moduleDir, m.Name()); err != nil {
 			fmt.Printf("      warning: failed to write module manifest: %v\n", err)
 		}

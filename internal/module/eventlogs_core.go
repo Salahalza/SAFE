@@ -14,7 +14,7 @@ func (m *EventLogsCore) Run(ctx *Context) Result {
 		ModuleName: m.Name(),
 		StartedAt:  started,
 		Artifacts:  []Artifact{},
-		Warnings:   []string{},
+		Findings:   []Finding{},
 		Errors:     []string{},
 	}
 
@@ -52,7 +52,7 @@ func (m *EventLogsCore) Run(ctx *Context) Result {
 		optResult := Result{
 			Artifacts: []Artifact{},
 			Errors:    []string{},
-			Warnings:  []string{},
+			Findings:  []Finding{},
 		}
 		runDirectOutputCommands(ctx.Ctx, ctx.OutputDir, []DirectCommand{{
 			Filename: filename,
@@ -61,9 +61,11 @@ func (m *EventLogsCore) Run(ctx *Context) Result {
 		}}, &optResult)
 
 		result.Artifacts = append(result.Artifacts, optResult.Artifacts...)
-		for _, e := range optResult.Errors {
-			result.Warnings = append(result.Warnings,
-				"optional channel skipped: "+e)
+
+		// Optional channels — failures are informational, not warnings.
+		if len(optResult.Errors) > 0 {
+			result.AddInfo(filename,
+				"optional channel not present on this target — this is normal unless the corresponding tool is installed")
 		}
 	}
 

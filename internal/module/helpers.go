@@ -12,42 +12,23 @@ import (
 	"time"
 )
 
-// Command describes one external command a module wants to run
-// and the file its output should be saved to.
 type Command struct {
-	Filename string
-	Name     string
-	Args     []string
-
-	// MinSize, if > 0, is the minimum file size (in bytes) for the output
-	// to be kept as an artifact. Files below this are dropped with a warning.
-	// 0 means don't drop based on size.
-	MinSize int64
-
-	// Check is an optional content verification step.
-	Check *ContentCheck
-
-	// SkipChecks bypasses all content verification (but MinSize still applies).
+	Filename   string
+	Name       string
+	Args       []string
+	MinSize    int64
+	Check      *ContentCheck
 	SkipChecks bool
 }
 
-// DirectCommand describes a command whose output goes directly to a file
-// the command itself creates, not captured from stdout.
 type DirectCommand struct {
-	Filename string
-	Name     string
-	Args     []string
-
-	// Check is an optional content verification step.
-	Check *ContentCheck
-
-	// SkipChecks bypasses all content verification.
+	Filename   string
+	Name       string
+	Args       []string
+	Check      *ContentCheck
 	SkipChecks bool
 }
 
-// runCommands executes a slice of Commands inside outputDir.
-// Honors the provided context for cancellation.
-// After each command, runs ContentCheck if defined.
 func runCommands(ctx context.Context, outputDir string, commands []Command, result *Result) {
 	for _, c := range commands {
 		if ctx.Err() != nil {
@@ -62,14 +43,14 @@ func runCommands(ctx context.Context, outputDir string, commands []Command, resu
 			continue
 		}
 
-		// Per-command minimum size check. Default (0) = no minimum.
+		// Per-command minimum size check.
 		if c.MinSize > 0 {
 			info, statErr := os.Stat(outPath)
 			if statErr == nil && info.Size() < c.MinSize {
 				_ = os.Remove(outPath)
-				result.Warnings = append(result.Warnings,
-					fmt.Sprintf("%s: output (%d bytes) below expected minimum (%d) — artifact dropped",
-						c.Filename, info.Size(), c.MinSize))
+				result.AddWarning(c.Filename,
+					fmt.Sprintf("output (%d bytes) below expected minimum (%d) — artifact dropped",
+						info.Size(), c.MinSize))
 				continue
 			}
 		}
@@ -82,24 +63,20 @@ func runCommands(ctx context.Context, outputDir string, commands []Command, resu
 			}
 			if issues := check.verifyContent(outPath); len(issues) > 0 {
 				for _, issue := range issues {
-					result.Warnings = append(result.Warnings,
-						fmt.Sprintf("%s: %s", c.Filename, issue))
+					result.AddWarning(c.Filename, issue)
 				}
 			}
 		}
 
 		artifact, err := describeArtifact(outPath)
 		if err != nil {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("hash %s: %v", c.Filename, err))
+			result.AddWarning(c.Filename, fmt.Sprintf("hash failed: %v", err))
 			continue
 		}
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
 }
 
-// runOne runs a single command with context-aware timeout and writes
-// combined output to outPath.
 func runOne(ctx context.Context, name string, args []string, outPath string) error {
 	cmd := exec.CommandContext(ctx, name, args...)
 	out, err := cmd.CombinedOutput()
@@ -113,7 +90,6 @@ func runOne(ctx context.Context, name string, args []string, outPath string) err
 	return os.WriteFile(outPath, out, 0o644)
 }
 
-// runDirectOutputCommands executes commands that write their own output files.
 func runDirectOutputCommands(ctx context.Context, outputDir string, commands []DirectCommand, result *Result) {
 	for _, c := range commands {
 		if ctx.Err() != nil {
@@ -152,32 +128,26 @@ func runDirectOutputCommands(ctx context.Context, outputDir string, commands []D
 			continue
 		}
 		if info.Size() == 0 {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("%s: output file is empty", c.Filename))
+			result.AddWarning(c.Filename, "output file is empty")
 		}
 
-		// Run content check if defined (default checks don't apply to direct
-		// commands because binary outputs like .evtx aren't scannable text).
 		if !c.SkipChecks && c.Check != nil {
 			if issues := c.Check.verifyContent(outPath); len(issues) > 0 {
 				for _, issue := range issues {
-					result.Warnings = append(result.Warnings,
-						fmt.Sprintf("%s: %s", c.Filename, issue))
+					result.AddWarning(c.Filename, issue)
 				}
 			}
 		}
 
 		artifact, err := describeArtifact(outPath)
 		if err != nil {
-			result.Warnings = append(result.Warnings,
-				fmt.Sprintf("hash %s: %v", c.Filename, err))
+			result.AddWarning(c.Filename, fmt.Sprintf("hash failed: %v", err))
 			continue
 		}
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
 }
 
-// describeArtifact returns an Artifact describing a file on disk.
 func describeArtifact(path string) (Artifact, error) {
 	info, err := os.Stat(path)
 	if err != nil {
@@ -194,7 +164,6 @@ func describeArtifact(path string) (Artifact, error) {
 	}, nil
 }
 
-// sha256File computes the SHA-256 hash of a file as a hex string.
 func sha256File(path string) (string, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -208,7 +177,9 @@ func sha256File(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// finalize sets the EndedAt, Duration, and Status fields on a Result.
+// finalize sets status based on errors, findings, and context state.
+// New rule: only critical findings or errors cause "partial"/"failed".
+// Info findings don't degrade status.
 func finalize(result *Result, started time.Time, ctx context.Context) {
 	result.EndedAt = time.Now().UTC()
 	result.Duration = result.EndedAt.Sub(started)
@@ -222,19 +193,23 @@ func finalize(result *Result, started time.Time, ctx context.Context) {
 		return
 	}
 
-	// New: if there are warnings (including content warnings) but no errors,
-	// status is partial — analyst should be aware something needs review.
+	_, warningCount, criticalCount := result.CountBySeverity()
+
 	switch {
 	case len(result.Errors) > 0 && len(result.Artifacts) == 0:
 		result.Status = StatusFailed
-	case len(result.Errors) > 0 || len(result.Warnings) > 0:
+	case len(result.Errors) > 0:
+		result.Status = StatusPartial
+	case criticalCount > 0:
+		result.Status = StatusPartial
+	case warningCount > 0:
 		result.Status = StatusPartial
 	default:
+		// Info findings are fine — status stays success.
 		result.Status = StatusSuccess
 	}
 }
 
-// prepareOutputDir creates the module's output directory.
 func prepareOutputDir(result *Result, outputDir string, started time.Time) bool {
 	if err := os.MkdirAll(outputDir, 0o755); err != nil {
 		result.Errors = append(result.Errors,
