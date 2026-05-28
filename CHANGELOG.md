@@ -2,7 +2,7 @@
 
 **SAHM — System for Artifact Harvesting and Management**
 
-## 2026-04-24 — Foundation laid
+## 2026-04-23 — Foundation laid
 
 - Go project scaffolded with Mac and Windows cross-compilation build pipelines, version-controlled in git.
 - Module contract defined: a standard interface every collection module implements (priority, time budget, execute).
@@ -105,3 +105,28 @@ Several Phase 1 deliverables landed in one day.
 - Added `--dry-run` for non-destructive environment validation. Validates case metadata, profile selection, preflight, external tools, and output writability.
 - Fixed: `--dry-run` no longer creates the output directory (genuinely non-destructive).
 - Added `ToolsCheck` preflight: verifies all 13 required Windows tools are on PATH.
+
+
+
+## 2026-05-27 (continued)
+
+- pathfinder: discovered registry.GetStringValue silently corrupts non-ASCII
+  characters in REG_EXPAND_SZ values via ANSI codepage fallback.
+- Replaced with manual UTF-16 LE decoding via registry.GetValue raw bytes.
+- Verified on Cyrillic test user: bytes are now valid UTF-8, os.Stat succeeds,
+  profile correctly discovered with Cyrillic path.
+- Real-case impact: SAHM now correctly enumerates user profiles with
+  non-Latin names (Russian, Czech, Arabic, CJK, etc).
+
+
+
+  ## 2026-05-27 (continued)
+
+- TUI: added in-place progress display during collection.
+- Per-module status updates flow from engine via progress channel.
+- Spinner animation on running modules, status markers (✓ ⚠ ✗ ⏱) on completed.
+- Elapsed time and total budget shown at bottom of progress screen.
+- Added completion screen with final status, duration, artifact count, output path.
+- Engine refactored to emit ProgressEvent messages on optional channel — CLI path
+  unchanged when channel is nil.
+- TUI no longer returns to plain terminal during collection.
