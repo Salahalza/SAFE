@@ -53,15 +53,13 @@ acquired with the tools mentioned above.
 
 ## Third-Party Tool Adapters (KAPE, DFIR-ORC)
 
-**Status:** Considered for v1. Deferred pending organizational review.
+**Status:** Removed from roadmap. Out of scope.
 
-**Rationale:** KAPE and DFIR-ORC are widely-used IR collection tools with
-established workflows in our industry. Wrapping them would extend SAHM's
-collection coverage significantly. However, this conflicts with the design
-preference to keep SAHM self-contained and avoid third-party dependencies.
-
-**Decision pending:** Pilot deployment may proceed without these adapters.
-If specific cases reveal a need, this decision will be revisited.
+**Rationale:** SAHM is built as a self-contained tool with no third-party
+binary dependencies. KAPE and DFIR-ORC functionality is partially replicated
+by SAHM's native modules in endpoint_deep, domain_controller, and server_role
+profiles. For full $MFT and USN journal extraction, see DESIGN_QUESTIONS.md
+for the planned native Go implementation.
 
 ---
 
@@ -111,3 +109,19 @@ endpoints and servers.
 **Rationale:** SAHM is Windows-focused. Cross-platform support would require
 re-architecting the collection modules entirely. Considered for future major
 versions if operational need emerges.
+
+---
+
+
+## Full Disk Imaging
+
+**Status:** Not implemented. Not planned.
+
+**Rationale:** Full disk imaging is well-served by existing tools (FTK Imager,
+Magnet AXIOM, dd) that have established legal acceptance and forensic
+community trust. SAHM does not attempt to replicate this. SAHM's value is in
+acquiring evidence those tools cannot easily get — live process state, current
+network connections, fresh memory inspection — not in duplicating disk imaging.
+
+**For cases requiring full disk image:** Use existing imaging tools. SAHM
+output can be stored alongside the disk image in the same case folder.

@@ -81,7 +81,7 @@ the rapid profile focused.
 
 ## 2026-05-26: Browser Artifact Baseline
 
-**Status:** Open. Pending decision on browser support scope.
+**Status:** Open. Scoped for endpoint_deep profile.
 
 **Question:** Which browsers should SAHM collect artifacts from, and what
 artifacts per browser?
@@ -108,7 +108,8 @@ artifacts per browser?
 
 ## 2026-05-26: $MFT and USN Journal Extraction
 
-**Status:** Open. Required for extended_live profile.
+**Status:** Open. Required for endpoint_deep profile completion (deferred to
+later module additions).
 
 **Question:** How should SAHM extract $MFT (Master File Table) and USN Journal?
 
@@ -125,7 +126,8 @@ Implementation complexity is moderate but manageable.
 
 ## 2026-05-26: SYSVOL Listing for Domain Targets
 
-**Status:** Open. Pending server_infra profile design.
+**Status:** Open. Required for domain_controller profile (July–August 2026
+timeline).
 
 **Question:** Should SAHM enumerate SYSVOL contents on domain controllers?
 
