@@ -16,26 +16,38 @@ import (
 	"sahm/internal/preflight"
 	"sahm/internal/profile"
 	"sahm/internal/tui"
+	"sahm/internal/vss"
 )
 
 const sahmVersion = "0.1.0"
 
 func main() {
 	var (
-		caseID        = flag.String("case", "", "Case identifier (e.g. INC-2026-0418). Required unless --tui.")
-		analyst       = flag.String("analyst", "", "Analyst name or initials. Required unless --tui.")
-		target        = flag.String("target", "", "Target identifier (hostname, asset tag, IP). Required unless --tui.")
-		targetClass   = flag.String("target-class", "unknown", "Target class: workstation, server, or unknown.")
-		profileName   = flag.String("profile", "rapid_triage", "Profile to run.")
-		outputDir     = flag.String("output", "./test-output", "Output base directory.")
-		notes         = flag.String("notes", "", "Optional analyst notes.")
-		listProfiles  = flag.Bool("list-profiles", false, "List available profiles and exit.")
-		skipPreflight = flag.Bool("skip-preflight", false, "Skip preflight checks (advanced use only).")
-		verifyDir     = flag.String("verify", "", "Verify integrity of a case folder. Specify the case folder path.")
-		tuiMode       = flag.Bool("tui", false, "Launch the interactive terminal UI.")
-		dryRun        = flag.Bool("dry-run", false, "Validate environment without performing collection.")
+		caseID         = flag.String("case", "", "Case identifier (e.g. INC-2026-0418). Required unless --tui.")
+		analyst        = flag.String("analyst", "", "Analyst name or initials. Required unless --tui.")
+		target         = flag.String("target", "", "Target identifier (hostname, asset tag, IP). Required unless --tui.")
+		targetClass    = flag.String("target-class", "unknown", "Target class: workstation, server, or unknown.")
+		profileName    = flag.String("profile", "rapid_triage", "Profile to run.")
+		outputDir      = flag.String("output", "./test-output", "Output base directory.")
+		notes          = flag.String("notes", "", "Optional analyst notes.")
+		listProfiles   = flag.Bool("list-profiles", false, "List available profiles and exit.")
+		skipPreflight  = flag.Bool("skip-preflight", false, "Skip preflight checks (advanced use only).")
+		verifyDir      = flag.String("verify", "", "Verify integrity of a case folder. Specify the case folder path.")
+		tuiMode        = flag.Bool("tui", false, "Launch the interactive terminal UI.")
+		dryRun         = flag.Bool("dry-run", false, "Validate environment without performing collection.")
+		cleanupShadows = flag.Bool("cleanup-shadows", false, "Clean up SAHM-created shadow copies left from previous interrupted runs, then exit.")
 	)
+
 	flag.Parse()
+	// --cleanup-shadows: explicit cleanup mode, run and exit.
+	if *cleanupShadows {
+		runShadowCleanup()
+		os.Exit(0)
+	}
+
+	// Auto-cleanup at startup: silently clean any orphan SAHM shadows.
+	// This protects against accumulating leaks from interrupted runs.
+	runAutoShadowCleanup()
 
 	// --- verify mode ---
 	if *verifyDir != "" {
@@ -459,4 +471,61 @@ func checkWritable(dir string) error {
 func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "Fatal: "+format+"\n", args...)
 	os.Exit(2)
+}
+
+// runShadowCleanup performs an explicit cleanup of SAHM-created shadows
+// invoked via --cleanup-shadows flag. Reports what was found and what was
+// cleaned, returns explicit exit status.
+func runShadowCleanup() {
+	fmt.Println("Scanning for SAHM-created shadow copies...")
+	fmt.Println()
+
+	infos, err := vss.ListSAHMShadows()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to list shadows: %v\n", err)
+		os.Exit(2)
+	}
+
+	if len(infos) == 0 {
+		fmt.Println("No SAHM-created shadow copies found. System is clean.")
+		return
+	}
+
+	fmt.Printf("Found %d SAHM-created shadow(s):\n", len(infos))
+	for _, info := range infos {
+		fmt.Printf("  - %s\n", info.SymlinkPath)
+		fmt.Printf("    Shadow ID: %s\n", info.ShadowID)
+		fmt.Printf("    Created:   %s\n", info.CreatedAt.Format(time.RFC3339))
+	}
+	fmt.Println()
+	fmt.Println("Cleaning up...")
+
+	cleaned, errs := vss.CleanupOrphans()
+	fmt.Printf("Cleaned: %d shadow(s)\n", cleaned)
+	if len(errs) > 0 {
+		fmt.Printf("Errors during cleanup: %d\n", len(errs))
+		for _, e := range errs {
+			fmt.Fprintf(os.Stderr, "  %v\n", e)
+		}
+	}
+	fmt.Println()
+	fmt.Println("Cleanup complete.")
+}
+
+// runAutoShadowCleanup performs silent orphan cleanup at SAHM startup.
+// Only reports problems; success is silent so the analyst's output isn't
+// cluttered with "0 shadows cleaned" messages on every run.
+func runAutoShadowCleanup() {
+	cleaned, errs := vss.CleanupOrphans()
+	if cleaned > 0 {
+		fmt.Printf("Auto-cleaned %d orphan shadow(s) from previous runs.\n\n", cleaned)
+	}
+	if len(errs) > 0 {
+		// Don't fatal on auto-cleanup errors; collection should still proceed.
+		fmt.Fprintf(os.Stderr, "Auto-cleanup encountered %d issue(s) (continuing):\n", len(errs))
+		for _, e := range errs {
+			fmt.Fprintf(os.Stderr, "  %v\n", e)
+		}
+		fmt.Fprintln(os.Stderr)
+	}
 }

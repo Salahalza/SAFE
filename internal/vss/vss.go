@@ -23,6 +23,7 @@ package vss
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -218,4 +219,144 @@ func parseShadowOutput(output string) (id, path string, err error) {
 	path = pathMatch[1]
 
 	return id, path, nil
+}
+
+// CleanupOrphans removes any SAHM-created shadows and symlinks left over
+// from previous interrupted runs.
+//
+// SAHM shadows are identified by matching symlinks at C:\sahm_shadow_*.
+// For each such symlink found:
+//   - Determine the shadow ID it points to (via symlink target)
+//   - Delete the shadow
+//   - Remove the symlink
+//
+// Returns the count of orphans cleaned up and any errors encountered.
+// Errors during individual cleanup do not stop the overall operation;
+// all errors are collected and returned.
+func CleanupOrphans() (int, []error) {
+	var errs []error
+	cleaned := 0
+
+	// Find all matching symlinks in C:\
+	matches, err := filepath.Glob(`C:\sahm_shadow_*`)
+	if err != nil {
+		return 0, []error{fmt.Errorf("glob sahm_shadow_* in C:\\: %w", err)}
+	}
+
+	for _, symlinkPath := range matches {
+		// Resolve the symlink to get the shadow device path it points to.
+		target, err := os.Readlink(symlinkPath)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("read symlink %s: %w", symlinkPath, err))
+			// Try to remove the symlink anyway; if it's broken, this is best-effort.
+			_ = removeSymlink(symlinkPath)
+			continue
+		}
+
+		// Extract the shadow ID by querying VSS for shadows matching this device path.
+		shadowID, err := findShadowIDByDevicePath(target)
+		if err != nil {
+			// Couldn't identify the shadow — but we can still remove the symlink.
+			errs = append(errs, fmt.Errorf("find shadow for %s: %w", target, err))
+			if rmErr := removeSymlink(symlinkPath); rmErr != nil {
+				errs = append(errs, fmt.Errorf("remove orphan symlink %s: %w", symlinkPath, rmErr))
+			}
+			continue
+		}
+
+		// Delete the shadow.
+		if shadowID != "" {
+			if delErr := deleteShadow(context.Background(), shadowID); delErr != nil {
+				errs = append(errs, fmt.Errorf("delete orphan shadow %s: %w", shadowID, delErr))
+				// Continue — still try to remove the symlink.
+			}
+		}
+
+		// Remove the symlink.
+		if rmErr := removeSymlink(symlinkPath); rmErr != nil {
+			errs = append(errs, fmt.Errorf("remove symlink %s: %w", symlinkPath, rmErr))
+			continue
+		}
+
+		cleaned++
+	}
+
+	return cleaned, errs
+}
+
+// removeSymlink removes a directory symlink using cmd.exe rmdir.
+func removeSymlink(path string) error {
+	cmd := exec.Command("cmd", "/c", "rmdir", path)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("rmdir failed: %v (output: %s)",
+			err, strings.TrimSpace(string(output)))
+	}
+	return nil
+}
+
+// findShadowIDByDevicePath queries VSS for the shadow whose DeviceObject
+// matches the given path. Returns empty string with nil error if no match.
+func findShadowIDByDevicePath(devicePath string) (string, error) {
+	// Strip trailing backslash if present (mklink adds it, WMI doesn't expect it).
+	devicePath = strings.TrimSuffix(devicePath, `\`)
+
+	psScript := fmt.Sprintf(`
+$ErrorActionPreference = 'Stop'
+$shadow = Get-WmiObject Win32_ShadowCopy | Where-Object { $_.DeviceObject -eq '%s' }
+if ($shadow) {
+    Write-Output $shadow.ID
+}
+`, devicePath)
+
+	cmd := exec.Command("powershell", "-STA", "-NoProfile", "-NonInteractive",
+		"-ExecutionPolicy", "Bypass", "-Command", psScript)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("powershell query: %w (output: %s)",
+			err, strings.TrimSpace(string(output)))
+	}
+
+	id := strings.TrimSpace(string(output))
+	return id, nil
+}
+
+// ListSAHMShadows returns information about SAHM-created shadows currently
+// on the system (those with matching C:\sahm_shadow_* symlinks). Useful
+// for the --cleanup-shadows command to report what will be cleaned.
+func ListSAHMShadows() ([]OrphanInfo, error) {
+	matches, err := filepath.Glob(`C:\sahm_shadow_*`)
+	if err != nil {
+		return nil, fmt.Errorf("glob sahm_shadow_*: %w", err)
+	}
+
+	var infos []OrphanInfo
+	for _, symlinkPath := range matches {
+		info := OrphanInfo{SymlinkPath: symlinkPath}
+
+		// Get symlink creation time as proxy for shadow age.
+		if stat, err := os.Lstat(symlinkPath); err == nil {
+			info.CreatedAt = stat.ModTime()
+		}
+
+		// Try to resolve to shadow target.
+		if target, err := os.Readlink(symlinkPath); err == nil {
+			info.ShadowPath = strings.TrimSuffix(target, `\`)
+			if id, err := findShadowIDByDevicePath(info.ShadowPath); err == nil {
+				info.ShadowID = id
+			}
+		}
+
+		infos = append(infos, info)
+	}
+
+	return infos, nil
+}
+
+// OrphanInfo describes a SAHM-created shadow found on the system.
+type OrphanInfo struct {
+	SymlinkPath string    // C:\sahm_shadow_<timestamp>
+	ShadowPath  string    // \\?\GLOBALROOT\Device\HarddiskVolumeShadowCopyN
+	ShadowID    string    // {guid}
+	CreatedAt   time.Time // approximate creation time from symlink mtime
 }
