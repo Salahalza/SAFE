@@ -55,9 +55,13 @@ type Finding struct {
 
 // Artifact is a single file produced by a module.
 type Artifact struct {
-	Path   string `json:"path"`
-	Size   int64  `json:"size"`
-	SHA256 string `json:"sha256"`
+	Name       string    `json:"name"`
+	Path       string    `json:"path"`
+	SHA256     string    `json:"sha256"`
+	Size       int64     `json:"size_bytes"`
+	CreatedAt  time.Time `json:"created_at"`
+	SourcePath string    `json:"source_path,omitempty"`
+	SourceSize int64     `json:"source_size_bytes,omitempty"`
 }
 
 // Result is what a module returns when it finishes.

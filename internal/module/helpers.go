@@ -221,3 +221,12 @@ func prepareOutputDir(result *Result, outputDir string, started time.Time) bool 
 	}
 	return true
 }
+
+// copyStream copies bytes from src to dst with a fixed buffer to bound
+// memory use. Returns total bytes copied and any error encountered.
+//
+// Used by file-copy modules to handle large artifacts (registry hives,
+// $MFT, etc.) without loading them into memory.
+func copyStream(dst io.Writer, src io.Reader) (int64, error) {
+	return io.Copy(dst, src)
+}
