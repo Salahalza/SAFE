@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"sahm/internal/analyzer"
 	"sahm/internal/casemeta"
 	"sahm/internal/engine"
 	"sahm/internal/manifest"
@@ -36,6 +37,7 @@ func main() {
 		tuiMode        = flag.Bool("tui", false, "Launch the interactive terminal UI.")
 		dryRun         = flag.Bool("dry-run", false, "Validate environment without performing collection.")
 		cleanupShadows = flag.Bool("cleanup-shadows", false, "Clean up SAHM-created shadow copies left from previous interrupted runs, then exit.")
+		analyzeDir     = flag.String("analyze", "", "Run analyzer parsers against a collected case folder. Specify the case folder path.")
 	)
 
 	flag.Parse()
@@ -149,6 +151,12 @@ func main() {
 	}
 
 	p, _ := registry.Get(c.ProfileName)
+
+	// --analyze: run lab-side parsers against a collected case.
+	if *analyzeDir != "" {
+		runAnalyzer(*analyzeDir)
+		os.Exit(0)
+	}
 
 	// --- dry-run ---
 	if *dryRun {
@@ -527,5 +535,33 @@ func runAutoShadowCleanup() {
 			fmt.Fprintf(os.Stderr, "  %v\n", e)
 		}
 		fmt.Fprintln(os.Stderr)
+	}
+}
+
+func runAnalyzer(caseDir string) {
+	fmt.Printf("SAHM Analyzer — parsing case folder\n")
+	fmt.Printf("Case: %s\n\n", caseDir)
+
+	registry := analyzer.NewRegistry()
+	registry.Register(&analyzer.UserAssistParser{})
+
+	result, err := analyzer.Run(caseDir, registry.All())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Analyzer failed: %v\n", err)
+		os.Exit(2)
+	}
+
+	fmt.Printf("Lab report: %s\n", result.LabReportDir)
+	fmt.Printf("Duration:   %s\n\n", result.Duration)
+
+	for _, p := range result.ParsersRun {
+		fmt.Printf("[%s] %s (%s)\n",
+			strings.ToUpper(p.Status), p.Name, p.Duration.Round(time.Millisecond))
+		for _, out := range p.Outputs {
+			fmt.Printf("  → %s\n", out)
+		}
+		for _, e := range p.Errors {
+			fmt.Printf("  ⚠ %s\n", e)
+		}
 	}
 }
