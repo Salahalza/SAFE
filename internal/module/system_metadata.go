@@ -13,6 +13,7 @@ type SystemMetadata struct{}
 func (m *SystemMetadata) Name() string              { return "system_metadata" }
 func (m *SystemMetadata) Priority() Priority        { return PriorityCritical }
 func (m *SystemMetadata) TimeBudget() time.Duration { return 30 * time.Second }
+func (m *SystemMetadata) RequiresVSS() bool         { return false }
 
 func (m *SystemMetadata) Run(ctx *Context) Result {
 	started := time.Now().UTC()

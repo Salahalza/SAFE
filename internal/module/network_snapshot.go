@@ -7,6 +7,7 @@ type NetworkSnapshot struct{}
 func (m *NetworkSnapshot) Name() string              { return "network_snapshot" }
 func (m *NetworkSnapshot) Priority() Priority        { return PriorityCritical }
 func (m *NetworkSnapshot) TimeBudget() time.Duration { return 60 * time.Second }
+func (m *NetworkSnapshot) RequiresVSS() bool         { return false }
 
 func (m *NetworkSnapshot) Run(ctx *Context) Result {
 	started := time.Now().UTC()

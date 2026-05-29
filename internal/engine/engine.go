@@ -9,6 +9,7 @@ import (
 	"sahm/internal/manifest"
 	"sahm/internal/module"
 	"sahm/internal/profile"
+	"sahm/internal/vss"
 )
 
 type Engine struct {
@@ -19,18 +20,16 @@ type Engine struct {
 	ProgressCh chan<- ProgressEvent
 }
 
-// ProgressEvent is one update emitted during collection.
 type ProgressEvent struct {
 	Kind        EventKind
-	ModuleIndex int // 0-based
+	ModuleIndex int
 	ModuleName  string
-	TotalCount  int           // total number of modules in the profile
-	Result      module.Result // populated for EventModuleDone
-	Duration    time.Duration // populated for EventCaseDone (total elapsed)
-	Status      string        // populated for EventCaseDone ("success" / "partial" / "degraded")
+	TotalCount  int
+	Result      module.Result
+	Duration    time.Duration
+	Status      string
 }
 
-// EventKind identifies the type of progress event.
 type EventKind int
 
 const (
@@ -52,6 +51,7 @@ type CaseResult struct {
 	Duration    time.Duration   `json:"duration_ns"`
 	Modules     []module.Result `json:"modules"`
 	Status      string          `json:"status"`
+	ShadowID    string          `json:"shadow_id,omitempty"`
 }
 
 func (e *Engine) Run(p *profile.Profile) CaseResult {
@@ -64,10 +64,46 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 	}
 
 	e.emitOrPrint(ProgressEvent{Kind: EventCaseStart, TotalCount: len(p.Modules)},
-		fmt.Sprintf("Profile: %s (v%s) — %s\nTotal budget: %s\n\n", p.Name, p.Version, p.Description, p.TotalBudget))
+		fmt.Sprintf("Profile: %s (v%s) — %s\nTotal budget: %s\n\n",
+			p.Name, p.Version, p.Description, p.TotalBudget))
 
 	profileCtx, profileCancel := context.WithTimeout(context.Background(), p.TotalBudget)
 	defer profileCancel()
+
+	// Determine if any module needs VSS. If so, create one shadow for the case.
+	var sharedShadow *vss.Shadow
+	var shadowErr error
+
+	if anyModuleRequiresVSS(p.Modules) {
+		if e.ProgressCh == nil {
+			fmt.Println("Creating Volume Shadow Copy for locked-file access...")
+		}
+		// Use a generous timeout for shadow creation (up to 60s on busy systems).
+		shadowCtx, shadowCancel := context.WithTimeout(profileCtx, 60*time.Second)
+		sharedShadow, shadowErr = vss.CreateShadowWithContext(shadowCtx, "C:")
+		shadowCancel()
+
+		if shadowErr != nil {
+			if e.ProgressCh == nil {
+				fmt.Printf("WARNING: VSS shadow creation failed: %v\n", shadowErr)
+				fmt.Println("VSS-dependent modules will be skipped.")
+			}
+		} else {
+			result.ShadowID = sharedShadow.ShadowID
+			if e.ProgressCh == nil {
+				fmt.Printf("Shadow created: %s -> %s\n\n",
+					sharedShadow.ShadowID, sharedShadow.MountedPath)
+			}
+			// Ensure cleanup runs regardless of how Run exits.
+			defer func() {
+				if err := sharedShadow.Cleanup(); err != nil {
+					if e.ProgressCh == nil {
+						fmt.Printf("WARNING: shadow cleanup error: %v\n", err)
+					}
+				}
+			}()
+		}
+	}
 
 	for i, m := range p.Modules {
 		e.emitOrPrint(
@@ -81,6 +117,36 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 				i+1, len(p.Modules), m.Name(), m.Priority(), m.TimeBudget()),
 		)
 
+		// If this module requires VSS but shadow creation failed, skip it
+		// with a clear failure record.
+		if m.RequiresVSS() && sharedShadow == nil {
+			started := time.Now().UTC()
+			modResult := module.Result{
+				ModuleName: m.Name(),
+				Status:     module.StatusFailed,
+				StartedAt:  started,
+				EndedAt:    started,
+				Duration:   0,
+				Artifacts:  []module.Artifact{},
+				Findings:   []module.Finding{},
+				Errors: []string{
+					fmt.Sprintf("module requires VSS but shadow creation failed: %v", shadowErr),
+				},
+			}
+			result.Modules = append(result.Modules, modResult)
+			e.emitOrPrint(
+				ProgressEvent{
+					Kind:        EventModuleDone,
+					ModuleIndex: i,
+					ModuleName:  m.Name(),
+					TotalCount:  len(p.Modules),
+					Result:      modResult,
+				},
+				fmt.Sprintf("      status=skipped reason=VSS unavailable\n"),
+			)
+			continue
+		}
+
 		moduleDir := filepath.Join(
 			e.CaseDir,
 			"modules",
@@ -92,6 +158,7 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 		ctx := &module.Context{
 			OutputDir: moduleDir,
 			Ctx:       modCtx,
+			Shadow:    sharedShadow,
 		}
 
 		modResult := runModuleWithWatchdog(m, ctx, m.TimeBudget())
@@ -156,8 +223,16 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 	return result
 }
 
-// emitOrPrint sends event to the progress channel if set, otherwise prints
-// the provided fallback string to stdout (CLI mode).
+// anyModuleRequiresVSS returns true if any module in the list needs VSS.
+func anyModuleRequiresVSS(mods []module.Module) bool {
+	for _, m := range mods {
+		if m.RequiresVSS() {
+			return true
+		}
+	}
+	return false
+}
+
 func (e *Engine) emitOrPrint(event ProgressEvent, cliFallback string) {
 	if e.ProgressCh != nil {
 		e.ProgressCh <- event

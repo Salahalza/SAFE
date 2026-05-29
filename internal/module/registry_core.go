@@ -7,6 +7,7 @@ type RegistryCore struct{}
 func (m *RegistryCore) Name() string              { return "registry_core" }
 func (m *RegistryCore) Priority() Priority        { return PriorityHigh }
 func (m *RegistryCore) TimeBudget() time.Duration { return 5 * time.Minute }
+func (m *RegistryCore) RequiresVSS() bool         { return false }
 
 func (m *RegistryCore) Run(ctx *Context) Result {
 	started := time.Now().UTC()

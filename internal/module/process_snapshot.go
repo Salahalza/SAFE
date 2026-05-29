@@ -7,6 +7,7 @@ type ProcessSnapshot struct{}
 func (m *ProcessSnapshot) Name() string              { return "process_snapshot" }
 func (m *ProcessSnapshot) Priority() Priority        { return PriorityCritical }
 func (m *ProcessSnapshot) TimeBudget() time.Duration { return 60 * time.Second }
+func (m *ProcessSnapshot) RequiresVSS() bool         { return false }
 
 func (m *ProcessSnapshot) Run(ctx *Context) Result {
 	started := time.Now().UTC()

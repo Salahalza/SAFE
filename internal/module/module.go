@@ -2,6 +2,7 @@ package module
 
 import (
 	"context"
+	"sahm/internal/vss"
 	"time"
 )
 
@@ -133,6 +134,7 @@ type Module interface {
 	Name() string
 	Priority() Priority
 	TimeBudget() time.Duration
+	RequiresVSS() bool
 	Run(ctx *Context) Result
 }
 
@@ -140,4 +142,9 @@ type Module interface {
 type Context struct {
 	OutputDir string
 	Ctx       context.Context
+
+	// Shadow is the volume shadow copy for this case, if any module
+	// in the profile required VSS. Nil if no module needs it.
+	// Modules that require VSS read locked files from Shadow.MountedPath.
+	Shadow *vss.Shadow
 }

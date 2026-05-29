@@ -7,6 +7,7 @@ type EventLogsCore struct{}
 func (m *EventLogsCore) Name() string              { return "eventlogs_core" }
 func (m *EventLogsCore) Priority() Priority        { return PriorityHigh }
 func (m *EventLogsCore) TimeBudget() time.Duration { return 10 * time.Minute }
+func (m *EventLogsCore) RequiresVSS() bool         { return false }
 
 func (m *EventLogsCore) Run(ctx *Context) Result {
 	started := time.Now().UTC()

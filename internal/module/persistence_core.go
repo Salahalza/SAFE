@@ -15,6 +15,7 @@ type PersistenceCore struct{}
 func (m *PersistenceCore) Name() string              { return "persistence_core" }
 func (m *PersistenceCore) Priority() Priority        { return PriorityHigh }
 func (m *PersistenceCore) TimeBudget() time.Duration { return 3 * time.Minute }
+func (m *PersistenceCore) RequiresVSS() bool         { return false }
 
 func (m *PersistenceCore) Run(ctx *Context) Result {
 	started := time.Now().UTC()

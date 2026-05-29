@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"sahm/internal/vss"
 )
 
 type AmcacheCollection struct{}
@@ -14,16 +12,11 @@ type AmcacheCollection struct{}
 func (m *AmcacheCollection) Name() string              { return "amcache_collection" }
 func (m *AmcacheCollection) Priority() Priority        { return PriorityHigh }
 func (m *AmcacheCollection) TimeBudget() time.Duration { return 2 * time.Minute }
+func (m *AmcacheCollection) RequiresVSS() bool         { return true }
 
-// Run collects the AmCache hive and its transaction logs via Volume Shadow Copy.
-//
-// AmCache (Application Compatibility Cache) records executable metadata
-// including SHA-1 hash, install date, publisher, and full path for every
-// executable that has run on the system. It survives reboots and is one
-// of the highest-value forensic artifacts on Windows.
-//
-// The hive is at C:\Windows\AppCompat\Programs\Amcache.hve but is held open
-// by the Windows shell/system, requiring VSS for forensic acquisition.
+// Run collects the AmCache hive and its transaction logs from the shared
+// volume shadow copy provided in the module Context. The engine creates the
+// shadow once per case and shares it across all VSS-requiring modules.
 func (m *AmcacheCollection) Run(ctx *Context) Result {
 	started := time.Now().UTC()
 	result := Result{
@@ -38,28 +31,15 @@ func (m *AmcacheCollection) Run(ctx *Context) Result {
 		return result
 	}
 
-	// Create a shadow copy of C: to access the locked hive.
-	shadow, err := vss.CreateShadowWithContext(ctx.Ctx, "C:")
-	if err != nil {
-		result.AddWarning("vss",
-			fmt.Sprintf("could not create shadow copy: %v", err))
-		result.Errors = append(result.Errors,
-			fmt.Sprintf("VSS unavailable, AmCache not collected: %v", err))
+	if ctx.Shadow == nil {
+		// Engine should have prevented this, but guard anyway.
+		result.AddWarning("vss", "no shadow copy available; module should have been skipped by engine")
+		result.Errors = append(result.Errors, "no shadow available")
 		finalize(&result, started, ctx.Ctx)
 		return result
 	}
-	defer func() {
-		if cleanupErr := shadow.Cleanup(); cleanupErr != nil {
-			// Log cleanup error but don't downgrade the module status —
-			// the collection itself succeeded.
-			result.Errors = append(result.Errors,
-				fmt.Sprintf("shadow cleanup: %v", cleanupErr))
-		}
-	}()
 
-	// AmCache file paths (relative to the volume root).
 	amcacheDir := filepath.Join("Windows", "AppCompat", "Programs")
-
 	files := []string{
 		"Amcache.hve",
 		"Amcache.hve.LOG1",
@@ -69,7 +49,7 @@ func (m *AmcacheCollection) Run(ctx *Context) Result {
 	mainHiveFound := false
 
 	for _, name := range files {
-		srcPath := filepath.Join(shadow.MountedPath, amcacheDir, name)
+		srcPath := filepath.Join(ctx.Shadow.MountedPath, amcacheDir, name)
 		dstPath := filepath.Join(ctx.OutputDir, name)
 
 		info, err := os.Stat(srcPath)
@@ -86,7 +66,6 @@ func (m *AmcacheCollection) Run(ctx *Context) Result {
 			continue
 		}
 
-		// Copy from the shadow to our case folder.
 		if err := copyFile(srcPath, dstPath); err != nil {
 			result.AddWarning(name, fmt.Sprintf("copy failed: %v", err))
 			result.Errors = append(result.Errors, fmt.Sprintf("%s copy: %v", name, err))
@@ -100,7 +79,6 @@ func (m *AmcacheCollection) Run(ctx *Context) Result {
 			continue
 		}
 
-		// Record the original source path (the real location, not the shadow).
 		artifact.SourcePath = filepath.Join(`C:\`, amcacheDir, name)
 		artifact.SourceSize = info.Size()
 
@@ -124,11 +102,11 @@ func (m *AmcacheCollection) Run(ctx *Context) Result {
 		}
 		if logCount > 0 {
 			result.AddInfo("amcache_collection",
-				fmt.Sprintf("collected Amcache.hve and %d transaction log file(s) via VSS shadow copy",
+				fmt.Sprintf("collected Amcache.hve and %d transaction log file(s) from shared shadow",
 					logCount))
 		} else {
 			result.AddInfo("amcache_collection",
-				"collected Amcache.hve via VSS shadow copy (no transaction logs present)")
+				"collected Amcache.hve from shared shadow (no transaction logs present)")
 		}
 	}
 
