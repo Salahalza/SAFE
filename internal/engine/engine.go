@@ -142,7 +142,7 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 					TotalCount:  len(p.Modules),
 					Result:      modResult,
 				},
-				fmt.Sprintf("      status=skipped reason=VSS unavailable\n"),
+				"      status=skipped reason=VSS unavailable\n",
 			)
 			continue
 		}
