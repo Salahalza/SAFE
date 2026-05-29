@@ -199,15 +199,14 @@ The repository ships with the following operational documents:
 
 | Document | Purpose |
 |---|---|
-| `PLAN.md` | Master v1.0 plan: scope commitment, artifact coverage, build sequence, timeline |
-| `PROFILES.md` | Profile design, design principles, module assignments, selection guidance |
-| `LIMITATIONS.md` | Explicit out-of-scope items with rationale |
-| `MODULES_REFERENCE.md` | Per-module command reference for the IR team |
-| `DESIGN_QUESTIONS.md` | Open questions and resolution log |
-| `CHANGELOG.md` | Development log, per-session updates |
+| [`docs/PLAN.md`](docs/PLAN.md) | Master v1.0 plan: scope commitment, artifact coverage, build sequence, timeline |
+| [`docs/PROFILES.md`](docs/PROFILES.md) | Profile design, design principles, module assignments, selection guidance |
+| [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) | Explicit out-of-scope items with rationale |
+| [`docs/MODULES_REFERENCE.md`](docs/MODULES_REFERENCE.md) | Per-module command reference for the IR team |
+| [`docs/DESIGN_QUESTIONS.md`](docs/DESIGN_QUESTIONS.md) | Open questions and resolution log |
+| [`CHANGELOG.md`](CHANGELOG.md) | Development log, per-session updates |
 
-For management review: start with `PLAN.md`. For analyst onboarding: start with `PROFILES.md` and `MODULES_REFERENCE.md`. For developer contribution: start with `PLAN.md`, then `PROFILES.md`, then this README.
-
+For management review: start with `docs/PLAN.md`. For analyst onboarding: start with `docs/PROFILES.md` and `docs/MODULES_REFERENCE.md`. For developer contribution: start with `docs/PLAN.md`, then `docs/PROFILES.md`, then this README.
 ---
 
 ## Dependencies

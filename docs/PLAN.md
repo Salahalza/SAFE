@@ -7,11 +7,11 @@ If something is in this document, it's a commitment. If something is not in
 this document, it is either out of scope or deferred to v1.1+.
 
 Companion documents:
-- `PROFILES.md` — profile design and module assignments
-- `LIMITATIONS.md` — what SAHM intentionally does not do
-- `DESIGN_QUESTIONS.md` — open questions and resolution log
-- `MODULES_REFERENCE.md` — per-module command reference for IR team
-- `CHANGELOG.md` — development log
+- [`PROFILES.md`](PROFILES.md) — profile design and module assignments
+- [`LIMITATIONS.md`](LIMITATIONS.md) — what SAHM intentionally does not do
+- [`DESIGN_QUESTIONS.md`](DESIGN_QUESTIONS.md) — open questions and resolution log
+- [`MODULES_REFERENCE.md`](MODULES_REFERENCE.md) — per-module command reference for IR team
+- [`../CHANGELOG.md`](../CHANGELOG.md) — development log
 
 ---
 
