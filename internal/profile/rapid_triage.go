@@ -8,7 +8,7 @@ import (
 func RapidTriage() *Profile {
 	return &Profile{
 		Name:        "rapid_triage",
-		Version:     "0.1.1",
+		Version:     "0.1.2",
 		Description: "Fast first-touch assessment of a Windows endpoint or server.",
 		TotalBudget: 15 * time.Minute,
 		Modules: []module.Module{
