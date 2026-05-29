@@ -1,17 +1,14 @@
-# Compiled binaries
-*.exe
-/sahm
-/saham
-/acquira
+# Build artifacts
+sahm
+sahm.exe
 
-# OS clutter
-.DS_Store
-Thumbs.db
-
-# Editor files
+# IDE
 .vscode/
 .idea/
 
-# Test output
-/test-output/
-*.log
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output (case folders)
+test-output/
