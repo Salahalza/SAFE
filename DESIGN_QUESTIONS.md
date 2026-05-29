@@ -389,3 +389,37 @@ analysts have real reasons to override defaults.
 
 **Decision pending:** Deferred to polish phase after functional v1.0.
 Not blocking pilot deployment.
+
+---
+
+## 2026-05-28: Locked-File Access Strategy (VSS)
+
+**Status:** Open. Critical infrastructure for Phase 1.
+
+**Question:** How does SAHM read files that Windows holds open with exclusive
+locks (registry hives, $MFT, browser databases, etc.)?
+
+**Discovered while building:** amcache_collection module — file copy fails
+with "process cannot access the file because it is being used by another
+process" for live registry hives.
+
+**Options:**
+1. PowerShell wrapper around VSS — slow but simple
+2. Direct VSS COM API calls in Go — faster, more code
+3. vssadmin + mklink approach — shell out to create shadow, mount as symlink,
+   read normally, clean up
+
+**Decision pending:** Next session. Option 3 is leading candidate — uses tools
+already on every Windows system, no new Go dependencies, well-understood by
+the IR community.
+
+**Affected modules:**
+- amcache_collection (current session — partial workaround possible via reg save)
+- ntuser_collection (Phase 1)
+- usrclass_collection (Phase 1)
+- mft_extraction (Phase 4)
+- usn_journal_extraction (Phase 4)
+- browser_artifacts (Phase 3)
+
+**Workaround until resolved:** Modules gracefully report locked-file failures
+as warnings, do not falsely claim success.
