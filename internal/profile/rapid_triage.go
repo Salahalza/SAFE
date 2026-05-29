@@ -8,7 +8,7 @@ import (
 func RapidTriage() *Profile {
 	return &Profile{
 		Name:        "rapid_triage",
-		Version:     "0.1.2",
+		Version:     "0.1.3",
 		Description: "Fast first-touch assessment of a Windows endpoint or server.",
 		TotalBudget: 15 * time.Minute,
 		Modules: []module.Module{
@@ -20,6 +20,7 @@ func RapidTriage() *Profile {
 			&module.PersistenceCore{},
 			&module.AmcacheCollection{},
 			&module.UserHivesCollection{},
+			&module.UserAssistCollection{},
 		},
 	}
 }
