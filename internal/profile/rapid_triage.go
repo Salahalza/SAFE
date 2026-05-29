@@ -19,6 +19,7 @@ func RapidTriage() *Profile {
 			&module.RegistryCore{},
 			&module.PersistenceCore{},
 			&module.AmcacheCollection{},
+			&module.UserHivesCollection{},
 		},
 	}
 }
