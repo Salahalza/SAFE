@@ -21,6 +21,7 @@ func RapidTriage() *Profile {
 			&module.AmcacheCollection{},
 			&module.UserHivesCollection{},
 			&module.UserAssistCollection{},
+			&module.PrefetchCollection{},
 		},
 	}
 }
