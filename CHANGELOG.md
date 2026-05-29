@@ -130,3 +130,97 @@ Several Phase 1 deliverables landed in one day.
 - Engine refactored to emit ProgressEvent messages on optional channel — CLI path
   unchanged when channel is nil.
 - TUI no longer returns to plain terminal during collection.
+
+
+## 2026-05-29 (continued)
+
+- Engine refactored: one VSS shadow per case, shared across all VSS-requiring modules.
+- amcache_collection module duration dropped from ~1.6s to ~60ms (25x faster).
+- Modules declare VSS dependency via new RequiresVSS() method on Module interface.
+- Engine creates shadow once before module loop; cleans up via defer at end.
+- VSS-requiring modules skipped with clear error if shadow creation fails;
+  non-VSS modules continue normally.
+- Module Context now includes Shadow *vss.Shadow field (nil when no module needs it).
+- Validated with 5 consecutive runs: 5/5 SUCCESS, zero leaked shadows.
+
+
+## 2026-05-29 (continued)
+
+- Added user_hives_collection module to rapid_triage.
+- Collects NTUSER.DAT and UsrClass.dat plus transaction logs (LOG1, LOG2)
+  for every human user profile on the system.
+- Uses shared VSS shadow for locked-file access (no own shadow creation).
+- Per-user output organized by SID (forensically authoritative identifier).
+- Verified on Cyrillic user (Алексей): Unicode paths preserved end-to-end.
+- Built-in profiles (LocalSystem, LocalService, NetworkService) skipped.
+- Module duration ~130ms for 2 users / 12 artifacts.
+- rapid_triage now produces 63 artifacts (up from 48) on clean Windows 11 admin run.
+
+
+## 2026-05-29 (continued)
+
+- Orphan shadow cleanup: automatic at startup + explicit --cleanup-shadows flag.
+- SAHM identifies its own shadows via C:\sahm_shadow_* symlinks; non-SAHM
+  shadows (System Restore, third-party backups) are never touched.
+- Auto-cleanup silent on success, reports count when orphans were cleaned.
+- Verified end-to-end: killed SAHM mid-run leaves orphan → next run auto-cleans
+  it → SAHM proceeds normally.
+- rapid_triage profile bumped to v0.1.2 (now includes amcache_collection and
+  user_hives_collection as part of solid first-touch coverage).
+
+
+  ## 2026-05-29 (continued)
+
+- Added userassist_collection module — first native parser in SAHM.
+- Reads NTUSER.DAT from shared VSS shadow, navigates to UserAssist,
+  ROT13-decodes value names, parses binary entry structure.
+- Produces per-user userassist.csv with category, decoded path, run count,
+  focus count, focus time, and last-run UTC timestamp.
+- Filters UEME_ internal counters (session metadata, not user-actionable).
+- Uses www.velocidex.com/golang/regparser library for hive parsing.
+- Module duration on test VM: ~40ms per user.
+- 35 entries collected from active user on test system.
+- Skipped Cyrillic user's NTUSER.DAT (no UserAssist data — newly-created profile).
+- rapid_triage now produces ~64 artifacts (was 63 before this module).
+- This is the first module that produces analyst-ready parsed output rather
+  than just collecting raw files. Establishes the pattern for future native
+  parsers (ShimCache, AmCache, Jump Lists, ShellBags, etc.)
+
+
+  ## 2026-05-29 (continued)
+
+- Added prefetch_collection module — collects all .pf files from
+  C:\Windows\Prefetch via shared VSS shadow.
+- Uses VSS for point-in-time view (avoids capturing prefetch entries
+  written during SAHM's own execution).
+- Handles disabled-Prefetch case (common on SSDs and Server SKUs) as
+  warning rather than failure.
+- Skips non-.pf entries and subdirectories.
+- Module duration on test VM: ~7s for 436 .pf files.
+- rapid_triage now produces 513 total artifacts on a clean Windows 11
+  admin run, verified end-to-end with --verify.
+
+
+  ## 2026-05-29 (refactor)
+
+- Major architectural refactor: enforce strict separation between target-side
+  collection and analyst-side parsing.
+- All parsing now lives in internal/analyzer/, invoked via "sahm --analyze
+  <case-folder>" from the analyst's workstation, not on the target.
+- Collection profiles now only copy files and execute commands. No CPU-intensive
+  parsing runs on the target device.
+- New rationale: every command executed on a target adds noise to event logs,
+  may alert EDR, and risks interaction with malware watching for forensic
+  activity. SAHM should be a quiet visitor.
+- rapid_triage reordered to follow order of volatility: process_snapshot,
+  network_snapshot, then system_metadata, then static collection.
+- Profile version bumped to 0.2.0.
+- Removed userassist_collection module (replaced by analyzer/userassist.go).
+- Removed shimcache_collection module (deferred — see LIMITATIONS.md).
+- New analyzer infrastructure: Parser interface, Registry, lab_report/
+  output directory inside the case folder.
+- UserAssist is the first parser in the new analyzer pattern. Verified
+  end-to-end: collection produces hives, analyzer reads case folder and
+  produces per-user CSVs.
+- Future parsers (ShimCache, AmCache, Prefetch parsing, etc.) will follow
+  the same pattern.
