@@ -2,7 +2,7 @@
 
 **System for Artifact Harvesting and Management**
 
-سهم — Arabic for "arrow."
+SAHM means an Arrow in Arabic
 
 SAHM is a Windows forensic acquisition platform built for incident response field work. A single self-contained executable, carried on a USB SSD, run on a targeted machine to collect tamper-evident forensic evidence into a case folder. The collected case is then taken back to the lab where SAHM's analysis mode produces parsed, analyst-ready output.
 
