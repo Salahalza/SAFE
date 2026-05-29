@@ -9,9 +9,9 @@ profile your module belongs in.
 
 ---
 
-## Design Principle
+## Design Principles
 
-Profiles are organized around **case type**, not around tool activity.
+### Principle 1: Profiles organized around case type, not tool activity
 
 Traditional IR thinking uses three modes — Memory, Triage, Full Image —
 named after the tools they invoke. SAHM uses profiles named after the
@@ -23,11 +23,49 @@ This means:
   AXIOM, or dd for cases requiring full disk acquisition.
 - Each profile is justified by a real case type, not by feature count.
 
+### Principle 2: Order of volatility within a profile
+
+Modules within a profile execute in order of data volatility, most volatile
+first.
+
+Volatile state (process tables, network connections, memory contents) changes
+second by second on a running system. If a collection is interrupted by a
+crash, isolation event, or system reboot, volatile data is gone. Static
+artifacts on disk (event logs, registry hives, prefetch files) survive.
+
+Therefore: capture volatile data first, durable data last. This minimizes
+the loss if collection is cut short and reduces the time between "decision
+to collect" and "volatile state captured."
+
+In rapid_triage, this is why process_snapshot and network_snapshot run
+before system_metadata and event log collection, even though all three are
+fast.
+
+### Principle 3: Collection on target, parsing in lab
+
+SAHM is designed to be a quiet visitor on a targeted device. Every command
+executed and every CPU cycle spent on the target risks:
+
+- Alerting EDR or attacker-deployed monitoring
+- Triggering anti-forensic logic in malware that watches for forensic activity
+- Adding noise to event logs that the analyst then has to filter out of
+  their own investigation
+- Creating new prefetch entries, registry timestamps, and other artifacts
+  that pollute the very evidence we're collecting
+
+Therefore: the collection profile copies files and runs read-only commands.
+It does not parse binary artifact formats, run regex extractions, or perform
+any processing that can be deferred to lab analysis.
+
+Parsing happens in lab analysis mode (`sahm --analyze <case-folder>`),
+running on the analyst's workstation. The case folder is the input;
+`<case-folder>/lab_report/` is the output. See PLAN.md "Lab Analysis Mode"
+for the parser architecture.
 ---
 
 ## Profile 1: rapid_triage
 
-**Status:** Built.
+**Status:** Built (v0.2.0).
 
 **Use when:** First touch on an unknown target. You don't yet know what kind
 of case this is. You want fast, broadly useful evidence to decide whether
@@ -38,25 +76,28 @@ warrants deeper investigation.
 
 **Runtime:** ~30 seconds on healthy hardware.
 
-**Modules:**
-**Modules:**
-- system_metadata
-- process_snapshot
-- network_snapshot
-- eventlogs_core
-- registry_core
-- persistence_core
-- amcache_collection (planned next)
-- userassist_collection (planned next)
-- prefetch_collection (planned next)
-- user_hives_collection (planned next)
+**Modules (in execution order, following the order-of-volatility principle —
+see Design Principle 2 below):**
+1. process_snapshot
+2. network_snapshot
+3. system_metadata
+4. eventlogs_core
+5. registry_core
+6. persistence_core
+7. amcache_collection
+8. user_hives_collection
+9. prefetch_collection
 
-**Output:** ~48 artifacts on a clean Windows 11 admin run.
+**Output:** ~500 artifacts on a clean Windows 11 admin run.
 
 **What this profile does NOT include:** Process memory inspection, extended
 event channels, deep persistence. If you need any of those, use endpoint_deep
 or one of the server profiles instead.
 
+**Parsing:** rapid_triage performs no parsing on the target. The collected
+case folder is taken back to the lab where `sahm --analyze <case-folder>`
+produces parsed CSVs in a `lab_report/` subdirectory. See "Design Principle
+3" below.
 ---
 
 ## Profile 2: endpoint_deep

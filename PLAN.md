@@ -170,6 +170,19 @@ others in role-specific profiles. The categorization is per `PROFILES.md`.
 `sahm --analyze <case-folder>` reads a collected case and produces parsed
 analyst-ready output in a `lab_report/` subdirectory inside the case folder.
 
+**Architecture:** Parsers implement the `Parser` interface defined in
+`internal/analyzer/analyzer.go`. The analyzer's `Run()` function accepts
+a case folder path and a parser registry, executes each parser, and writes
+outputs to `<case-folder>/lab_report/<parser-name>/`. Each parser reads only
+from the case folder, never from the live system. This means lab analysis
+runs entirely on the analyst's workstation, fully offline.
+
+**Status (29 May 2026):**
+- Analyzer infrastructure: BUILT (`internal/analyzer/analyzer.go`)
+- UserAssist parser: BUILT (`internal/analyzer/userassist.go`), produces
+  per-user CSV from collected NTUSER.DAT hives.
+- All other parsers below: PLANNED.
+
 ### Native parsers (committed for v1.0 or shortly after)
 SAHM will ship native Go parsers for the following artifact types. Parser
 quality target: 95%+ coverage of cases the team handles. Edge cases fall
@@ -177,7 +190,12 @@ back to EZ Tools manually until SAHM's parser is improved.
 
 - Prefetch (.pf files) — equivalent to PECmd
 - AmCache.hve — equivalent to AmCacheParser
-- ShimCache (from SYSTEM hive) — equivalent to AppCompatCacheParser
+- ShimCache (from SYSTEM hive) — equivalent to AppCompatCacheParser.
+  **Note:** ShimCache binary format varies significantly across Windows
+  versions and is not publicly documented. Multi-version parser support
+  requires meaningful research effort. For SAHM v1.0, the SYSTEM hive is
+  collected by rapid_triage; analyst runs AppCompatCacheParser externally
+  against the collected hive until native support is built.
 - UserAssist (from NTUSER.DAT) — registry parser + ROT13 decode
 - Jump Lists (.automaticDestinations-ms, .customDestinations-ms) — equivalent to JLECmd
 - ShellBags (from NTUSER.DAT and UsrClass.dat) — equivalent to SBECmd
@@ -211,14 +229,26 @@ Sequence is logical dependency order. Timeline
 estimates are realistic, not aggressive.
 
 ### Phase 1: Solid rapid_triage (May 2026)
-Status: built, evolving. Add Tier 1 execution-history artifacts:
-- AmCache hive copy
-- UserAssist registry extraction
-- Prefetch directory copy
-- NTUSER.DAT and UsrClass.dat copies (gives ShellBags + RecentDocs as bonus)
+Status: COMPLETE.
 
-Expected outcome: rapid_triage runtime grows from ~30s to ~60-90s but
-forensic value increases substantially.
+Tier 1 execution-history artifacts added to rapid_triage:
+- AmCache hive copy (amcache_collection module, VSS-based)
+- NTUSER.DAT and UsrClass.dat copies per user (user_hives_collection module,
+  VSS-based, gives ShellBags + RecentDocs as bonus when parsed in lab)
+- Prefetch directory copy (prefetch_collection module, VSS-based)
+
+Mid-Phase-1 refactor (29 May 2026): strict collection/analysis separation
+adopted. UserAssist parsing moved from collection-side module to analyzer-
+side parser (see "Lab Analysis Mode" below). ShimCache parsing removed
+from Phase 1 entirely; deferred to lab analysis mode once multi-version
+format support is built (see "Out of Scope" below for current limitations).
+
+Profile bumped to v0.2.0 to reflect the architectural shift and module
+reordering for order of volatility.
+
+Actual outcome: rapid_triage runtime ~30s on test VM, ~500 artifacts
+collected. Forensic value significantly increased over the original
+6-module baseline.
 
 ### Phase 2: endpoint_deep foundation (June 2026)
 - process_memory_inspection module (RWX region detection first)
