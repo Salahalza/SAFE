@@ -14,6 +14,8 @@ type formField int
 
 const (
 	fieldCaseID formField = iota
+	fieldIRNumber
+	fieldCSINumber
 	fieldAnalyst
 	fieldTarget
 	fieldTargetClass
@@ -48,6 +50,8 @@ var AvailableProfiles = []ProfileOption{
 
 type formModel struct {
 	caseID      textinput.Model
+	irNumber    textinput.Model
+	csiNumber   textinput.Model
 	analyst     textinput.Model
 	target      textinput.Model
 	notes       textinput.Model
@@ -72,10 +76,12 @@ func newFormModel() formModel {
 	}
 
 	f := formModel{
-		caseID:      mk("INC-2026-0418"),
+		caseID:      mk("e.g. INC-2026-0418"),
+		irNumber:    mk("e.g. IR-2026-0418 (optional)"),
+		csiNumber:   mk("e.g. CSI-123456 (optional)"),
 		analyst:     mk("Your name or initials"),
-		target:      mk("Hostname, asset tag, or IP"),
-		notes:       mk("Optional notes about this collection"),
+		target:      mk("Hostname, asset tag, or IP address"),
+		notes:       mk("Anything you want to remember about this case (optional)"),
 		targetClass: "workstation",
 		profile:     defaultProfile,
 		focused:     fieldCaseID,
@@ -85,6 +91,8 @@ func newFormModel() formModel {
 
 func (f *formModel) focus(field formField) {
 	f.caseID.Blur()
+	f.irNumber.Blur()
+	f.csiNumber.Blur()
 	f.analyst.Blur()
 	f.target.Blur()
 	f.notes.Blur()
@@ -93,6 +101,10 @@ func (f *formModel) focus(field formField) {
 	switch field {
 	case fieldCaseID:
 		f.caseID.Focus()
+	case fieldIRNumber:
+		f.irNumber.Focus()
+	case fieldCSINumber:
+		f.csiNumber.Focus()
 	case fieldAnalyst:
 		f.analyst.Focus()
 	case fieldTarget:
@@ -118,6 +130,8 @@ func (f *formModel) prevField() {
 func (f *formModel) validate() error {
 	c := &casemeta.Case{
 		CaseID:           f.caseID.Value(),
+		IRNumber:         f.irNumber.Value(),
+		CSINumber:        f.csiNumber.Value(),
 		Analyst:          f.analyst.Value(),
 		TargetIdentifier: f.target.Value(),
 		TargetClass:      f.targetClass,
@@ -185,6 +199,10 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.form.focused {
 	case fieldCaseID:
 		m.form.caseID, cmd = m.form.caseID.Update(msg)
+	case fieldIRNumber:
+		m.form.irNumber, cmd = m.form.irNumber.Update(msg)
+	case fieldCSINumber:
+		m.form.csiNumber, cmd = m.form.csiNumber.Update(msg)
 	case fieldAnalyst:
 		m.form.analyst, cmd = m.form.analyst.Update(msg)
 	case fieldTarget:
@@ -217,15 +235,17 @@ func indexOfProfile(value string) int {
 func (f formModel) View() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("New Case"))
+	b.WriteString(titleStyle.Render("Start a new case"))
 	b.WriteString("\n\n")
 
 	b.WriteString(f.renderTextField("Case ID", f.caseID, fieldCaseID))
+	b.WriteString(f.renderTextField("IR# (optional)", f.irNumber, fieldIRNumber))
+	b.WriteString(f.renderTextField("CSI# (optional)", f.csiNumber, fieldCSINumber))
 	b.WriteString(f.renderTextField("Analyst", f.analyst, fieldAnalyst))
 	b.WriteString(f.renderTextField("Target", f.target, fieldTarget))
 	b.WriteString(f.renderTargetClass())
 	b.WriteString(f.renderProfile())
-	b.WriteString(f.renderTextField("Notes", f.notes, fieldNotes))
+	b.WriteString(f.renderTextField("Notes (optional)", f.notes, fieldNotes))
 	b.WriteString(f.renderSubmit())
 
 	if f.errMessage != "" {
@@ -233,7 +253,7 @@ func (f formModel) View() string {
 		b.WriteString("\n")
 	}
 
-	hint := hintStyle.Render("\nTab/↓ next  •  Shift+Tab/↑ prev  •  ←/→ change selection  •  Esc back  •  Ctrl+C quit")
+	hint := hintStyle.Render("\nTab / ↓ next field   •   Shift+Tab / ↑ previous field   •   ← / → change selection   •   Esc go back   •   Ctrl+C quit")
 	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())
@@ -252,7 +272,7 @@ func (f formModel) renderTargetClass() string {
 	if f.focused == fieldTargetClass {
 		style = focusedLabelStyle
 	}
-	label := style.Render("Target Class")
+	label := style.Render("Target class")
 
 	var parts []string
 	for _, o := range targetClassOptions {
@@ -275,7 +295,7 @@ func (f formModel) renderProfile() string {
 	if f.focused == fieldProfile {
 		style = focusedLabelStyle
 	}
-	label := style.Render("Profile")
+	label := style.Render("Collection profile")
 
 	var parts []string
 	for _, o := range AvailableProfiles {
@@ -294,14 +314,14 @@ func (f formModel) renderProfile() string {
 }
 
 func (f formModel) renderSubmit() string {
-	text := "[ Begin Collection ]"
+	text := "[ Start collection ]"
 	if f.focused == fieldSubmit {
 		text = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#0F172A")).
 			Background(lipgloss.Color("#7DD3FC")).
 			Bold(true).
 			Padding(0, 2).
-			Render("Begin Collection")
+			Render("Start collection")
 	}
 	return text + "\n"
 }

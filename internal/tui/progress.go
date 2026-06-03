@@ -86,7 +86,7 @@ func (p *progressModel) applyEvent(ev engine.ProgressEvent) {
 func (p progressModel) View() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("SAHM — Collection in Progress"))
+	b.WriteString(titleStyle.Render("Collecting..."))
 	b.WriteString("\n\n")
 
 	b.WriteString(labelStyle.Render("Case:    "))
@@ -147,11 +147,11 @@ func (p progressModel) View() string {
 	}
 
 	b.WriteString("\n")
-	footer := fmt.Sprintf("Elapsed: %s  •  Total budget: %s",
+	footer := fmt.Sprintf("Elapsed: %s   •   Time limit: %s",
 		p.elapsed.Round(time.Second), p.totalBudget)
 	b.WriteString(hintStyle.Render(footer))
 	b.WriteString("\n")
-	b.WriteString(hintStyle.Render("Ctrl+C to abort"))
+	b.WriteString(hintStyle.Render("Ctrl+C to cancel"))
 
 	return containerStyle.Render(b.String())
 }

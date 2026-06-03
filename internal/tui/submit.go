@@ -30,10 +30,16 @@ func (m model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) confirmView() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("Confirm Case"))
+	b.WriteString(titleStyle.Render("Review before collection starts"))
 	b.WriteString("\n\n")
 
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Case ID:    "), m.form.caseID.Value()))
+	if m.form.irNumber.Value() != "" {
+		b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("IR#:        "), m.form.irNumber.Value()))
+	}
+	if m.form.csiNumber.Value() != "" {
+		b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("CSI#:       "), m.form.csiNumber.Value()))
+	}
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Analyst:    "), m.form.analyst.Value()))
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Target:     "), m.form.target.Value()))
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Class:      "), m.form.targetClass))
@@ -43,10 +49,10 @@ func (m model) confirmView() string {
 	}
 
 	b.WriteString("\n")
-	b.WriteString(successStyle.Render("Proceed with collection?"))
+	b.WriteString(successStyle.Render("Start collection now?"))
 	b.WriteString("\n")
 
-	hint := hintStyle.Render("\n[y] confirm  •  [n/Esc] go back  •  [Ctrl+C] quit")
+	hint := hintStyle.Render("\n[y] yes, start   •   [n / Esc] go back to edit   •   [Ctrl+C] quit")
 	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())

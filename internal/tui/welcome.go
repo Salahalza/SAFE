@@ -19,11 +19,11 @@ func (m model) updateWelcome(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func welcomeView() string {
 	title := titleStyle.Render("SAHM — System for Artifact Harvesting and Management")
-	subtitle := subtitleStyle.Render("Windows field forensic acquisition")
-	body := "Press Enter to begin a new case.\n\n" +
-		"  Enter   begin\n" +
-		"  q       quit"
-	hint := hintStyle.Render("\nv0.1.0  •  internal IR use only")
+	subtitle := subtitleStyle.Render("Windows Forensic Acquisition")
+	body := "Press one of the following:\n\n" +
+		"  Enter   Start a new case\n" +
+		"  q       Quit"
+	hint := hintStyle.Render("\nv0.1.0 ")
 
 	return containerStyle.Render(
 		title + "\n" + subtitle + "\n" + body + "\n" + hint,

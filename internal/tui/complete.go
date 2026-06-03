@@ -20,12 +20,12 @@ func (m model) updateComplete(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) completeView() string {
 	var b strings.Builder
 
-	b.WriteString(titleStyle.Render("Collection Complete"))
+	b.WriteString(titleStyle.Render("Collection complete"))
 	b.WriteString("\n\n")
 
 	r := m.collectionResult
 	if r == nil {
-		b.WriteString("No result available.\n")
+		b.WriteString("Collection ended without producing a result. Check the logs for details.\n")
 		return containerStyle.Render(b.String())
 	}
 
@@ -48,7 +48,7 @@ func (m model) completeView() string {
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Output:    "), r.CaseDir))
 
 	b.WriteString("\n")
-	b.WriteString(hintStyle.Render("Press Enter or q to exit."))
+	b.WriteString(hintStyle.Render("Press Enter to close, or q to quit."))
 
 	return containerStyle.Render(b.String())
 }
