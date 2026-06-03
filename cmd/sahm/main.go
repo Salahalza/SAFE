@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -573,6 +574,19 @@ func runAnalyzer(caseDir string) {
 			strings.ToUpper(p.Status), p.Name, p.Duration.Round(time.Millisecond))
 		for _, out := range p.Outputs {
 			fmt.Printf("  → %s\n", out)
+		}
+		if len(p.Stats) > 0 {
+			// Sort keys for stable output.
+			keys := make([]string, 0, len(p.Stats))
+			for k := range p.Stats {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			var parts []string
+			for _, k := range keys {
+				parts = append(parts, fmt.Sprintf("%s=%d", k, p.Stats[k]))
+			}
+			fmt.Printf("  stats: %s\n", strings.Join(parts, ", "))
 		}
 		for _, e := range p.Errors {
 			fmt.Printf("  ⚠ %s\n", e)

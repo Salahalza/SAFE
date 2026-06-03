@@ -42,34 +42,37 @@ var guidCategoryNames = map[string]string{
 	"{BCB48336-4DDD-48FF-BB0B-D3190DACB3E2}": "Recently used",
 }
 
-func (p *UserAssistParser) Parse(caseDir, labReportDir string) ([]string, []error) {
-	// The hives we want are in modules/<NN>_user_hives_collection/<SID>/NTUSER.DAT.
-	// We don't know the module number prefix in advance, so glob for it.
+func (p *UserAssistParser) Parse(caseDir, labReportDir string) ([]string, ParseStats, []error) {
+	stats := ParseStats{}
+
 	hivesGlob := filepath.Join(caseDir, "modules", "*_user_hives_collection")
 	matches, err := filepath.Glob(hivesGlob)
 	if err != nil {
-		return nil, []error{fmt.Errorf("glob hives dir: %w", err)}
+		return nil, nil, []error{fmt.Errorf("glob hives dir: %w", err)}
 	}
 	if len(matches) == 0 {
-		return nil, []error{fmt.Errorf("user_hives_collection module not found in case")}
+		return nil, nil, []error{fmt.Errorf("user_hives_collection module not found in case")}
 	}
 
 	hivesRoot := matches[0]
 
-	// Each subdirectory is a per-user folder (named by SID).
 	userDirs, err := os.ReadDir(hivesRoot)
 	if err != nil {
-		return nil, []error{fmt.Errorf("read hives root: %w", err)}
+		return nil, nil, []error{fmt.Errorf("read hives root: %w", err)}
 	}
 
-	// Create our output subdirectory.
 	outDir := filepath.Join(labReportDir, "userassist")
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return nil, []error{fmt.Errorf("create output dir: %w", err)}
+		return nil, nil, []error{fmt.Errorf("create output dir: %w", err)}
 	}
 
 	var outputs []string
 	var errs []error
+
+	usersProcessed := 0
+	usersWithData := 0
+	totalEntries := 0
+	unknownGUIDs := map[string]bool{} // dedupe across users
 
 	for _, ud := range userDirs {
 		if !ud.IsDir() {
@@ -78,60 +81,81 @@ func (p *UserAssistParser) Parse(caseDir, labReportDir string) ([]string, []erro
 		sid := ud.Name()
 		ntuserPath := filepath.Join(hivesRoot, sid, "NTUSER.DAT")
 
-		// Check that the hive exists.
 		if _, err := os.Stat(ntuserPath); err != nil {
-			// Missing hive is not an error — just skip this user.
 			continue
 		}
+		usersProcessed++
 
-		entries, err := parseUserAssistFromHive(ntuserPath)
+		entries, unknowns, err := parseUserAssistFromHive(ntuserPath)
 		if err != nil {
-			// Per-user parse failures are recorded but don't abort the parser.
 			errs = append(errs, fmt.Errorf("%s: %w", sid, err))
 			continue
+		}
+		for guid := range unknowns {
+			unknownGUIDs[guid] = true
 		}
 
 		if len(entries) == 0 {
 			continue
 		}
 
-		// Write per-user CSV.
 		csvPath := filepath.Join(outDir, fmt.Sprintf("%s_userassist.csv", sid))
 		if err := writeUserAssistCSV(csvPath, entries, sid); err != nil {
 			errs = append(errs, fmt.Errorf("%s csv: %w", sid, err))
 			continue
 		}
 		outputs = append(outputs, csvPath)
+		usersWithData++
+		totalEntries += len(entries)
 	}
 
-	return outputs, errs
+	stats["users_processed"] = usersProcessed
+	stats["users_with_data"] = usersWithData
+	stats["total_entries"] = totalEntries
+	stats["unknown_guids"] = len(unknownGUIDs)
+
+	// Surface unknown GUIDs as errors so they appear in the analyzer output.
+	// These aren't true errors — they're "new Microsoft GUIDs we should
+	// add to the known list." Reporting them helps the project grow its
+	// coverage over time.
+	for guid := range unknownGUIDs {
+		errs = append(errs, fmt.Errorf("unknown UserAssist category GUID %s — please report to update guidCategoryNames", guid))
+	}
+
+	return outputs, stats, errs
 }
 
-func parseUserAssistFromHive(ntuserPath string) ([]userAssistEntry, error) {
+// parseUserAssistFromHive opens a NTUSER.DAT hive and extracts UserAssist
+// entries. The second return value is the set of GUIDs encountered that
+// are not in guidCategoryNames — surfaced so the project can add support
+// for new Microsoft categories as they appear.
+func parseUserAssistFromHive(ntuserPath string) ([]userAssistEntry, map[string]bool, error) {
 	f, err := os.Open(ntuserPath)
 	if err != nil {
-		return nil, fmt.Errorf("open hive: %w", err)
+		return nil, nil, fmt.Errorf("open hive: %w", err)
 	}
 	defer f.Close()
 
 	reg, err := regparser.NewRegistry(f)
 	if err != nil {
-		return nil, fmt.Errorf("parse hive: %w", err)
+		return nil, nil, fmt.Errorf("parse hive: %w", err)
 	}
 
 	const userAssistPath = `Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist`
 	root := reg.OpenKey(userAssistPath)
 	if root == nil {
-		return nil, fmt.Errorf("UserAssist key not found")
+		return nil, nil, fmt.Errorf("UserAssist key not found")
 	}
 
 	var entries []userAssistEntry
+	unknowns := map[string]bool{}
 
 	for _, guidKey := range root.Subkeys() {
 		guidName := guidKey.Name()
 		category, known := guidCategoryNames[guidName]
 		if !known {
 			category = "Unknown"
+			unknowns[guidName] = true
 		}
 
 		var countKey *regparser.CM_KEY_NODE
@@ -149,7 +173,6 @@ func parseUserAssistFromHive(ntuserPath string) ([]userAssistEntry, error) {
 			rawName := val.ValueName()
 			decoded := rot13Decode(rawName)
 
-			// Skip UEME_ internal counters.
 			if strings.HasPrefix(decoded, "UEME_") {
 				continue
 			}
@@ -170,24 +193,37 @@ func parseUserAssistFromHive(ntuserPath string) ([]userAssistEntry, error) {
 		}
 	}
 
-	return entries, nil
+	return entries, unknowns, nil
 }
 
+// UserAssist binary entry layout. Documented across multiple forensic
+// references (Mandiant, SANS, EZ Tools). The full entry structure is 72 bytes;
+// shorter entries (typically 16 bytes for Windows XP-era data) are partially
+// populated as the data allows.
+const (
+	userAssistSessionIDOffset  = 0
+	userAssistRunCountOffset   = 4
+	userAssistFocusCountOffset = 8
+	userAssistFocusTimeOffset  = 12
+	userAssistLastRunOffset    = 60
+	userAssistFullEntrySize    = 68 // we need at least this many bytes to read FILETIME
+)
+
 func parseUserAssistBinary(entry *userAssistEntry, data []byte) {
-	if len(data) >= 4 {
-		entry.SessionID = binary.LittleEndian.Uint32(data[0:4])
+	if len(data) >= userAssistRunCountOffset {
+		entry.SessionID = binary.LittleEndian.Uint32(data[userAssistSessionIDOffset:userAssistRunCountOffset])
 	}
-	if len(data) >= 8 {
-		entry.RunCount = binary.LittleEndian.Uint32(data[4:8])
+	if len(data) >= userAssistFocusCountOffset {
+		entry.RunCount = binary.LittleEndian.Uint32(data[userAssistRunCountOffset:userAssistFocusCountOffset])
 	}
-	if len(data) >= 12 {
-		entry.FocusCount = binary.LittleEndian.Uint32(data[8:12])
+	if len(data) >= userAssistFocusTimeOffset {
+		entry.FocusCount = binary.LittleEndian.Uint32(data[userAssistFocusCountOffset:userAssistFocusTimeOffset])
 	}
 	if len(data) >= 16 {
-		entry.FocusTimeMs = binary.LittleEndian.Uint32(data[12:16])
+		entry.FocusTimeMs = binary.LittleEndian.Uint32(data[userAssistFocusTimeOffset:16])
 	}
-	if len(data) >= 68 {
-		ft := binary.LittleEndian.Uint64(data[60:68])
+	if len(data) >= userAssistFullEntrySize {
+		ft := binary.LittleEndian.Uint64(data[userAssistLastRunOffset:userAssistFullEntrySize])
 		if ft > 0 {
 			entry.LastRun = filetimeToTime(ft)
 			entry.HasLastRun = true
