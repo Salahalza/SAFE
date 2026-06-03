@@ -544,6 +544,7 @@ func runAnalyzer(caseDir string) {
 
 	registry := analyzer.NewRegistry()
 	registry.Register(&analyzer.UserAssistParser{})
+	registry.Register(&analyzer.PrefetchParser{}) // <-- new line
 
 	result, err := analyzer.Run(caseDir, registry.All())
 	if err != nil {
