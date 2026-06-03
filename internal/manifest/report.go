@@ -11,6 +11,8 @@ import (
 
 type CaseSummary struct {
 	CaseID      string
+	IRNumber    string
+	CSINumber   string
 	Analyst     string
 	Target      string
 	TargetClass string
@@ -79,8 +81,13 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 	b.WriteString(strings.Repeat("=", 70) + "\n")
 	b.WriteString(fmt.Sprintf("SAHM CASE REPORT — %s\n", s.CaseID))
 	b.WriteString(strings.Repeat("=", 70) + "\n\n")
-
 	b.WriteString(fmt.Sprintf("Case ID:      %s\n", s.CaseID))
+	if s.IRNumber != "" {
+		b.WriteString(fmt.Sprintf("IR#:          %s\n", s.IRNumber))
+	}
+	if s.CSINumber != "" {
+		b.WriteString(fmt.Sprintf("CSI#:         %s\n", s.CSINumber))
+	}
 	b.WriteString(fmt.Sprintf("Analyst:      %s\n", s.Analyst))
 	b.WriteString(fmt.Sprintf("Target:       %s (%s)\n", s.Target, s.TargetClass))
 	if s.Notes != "" {

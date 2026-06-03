@@ -38,6 +38,8 @@ func main() {
 		dryRun         = flag.Bool("dry-run", false, "Validate environment without performing collection.")
 		cleanupShadows = flag.Bool("cleanup-shadows", false, "Clean up SAHM-created shadow copies left from previous interrupted runs, then exit.")
 		analyzeDir     = flag.String("analyze", "", "Run analyzer parsers against a collected case folder. Specify the case folder path.")
+		irNumber       = flag.String("ir", "", "Optional IR ticket number (format: IR-####-####).")
+		csiNumber      = flag.String("csi", "", "Optional CSI ticket number (format: CSI-######).")
 	)
 
 	flag.Parse()
@@ -141,6 +143,8 @@ func main() {
 	// --- CLI mode: build case from flags ---
 	c := &casemeta.Case{
 		CaseID:           *caseID,
+		IRNumber:         *irNumber,
+		CSINumber:        *csiNumber,
 		Analyst:          *analyst,
 		TargetIdentifier: *target,
 		TargetClass:      *targetClass,
@@ -201,6 +205,12 @@ func main() {
 	fmt.Printf("SAHM v%s — System for Artifact Harvesting and Management\n", sahmVersion)
 	fmt.Println()
 	fmt.Printf("Case ID:    %s\n", c.CaseID)
+	if c.IRNumber != "" {
+		fmt.Printf("IR#:        %s\n", c.IRNumber)
+	}
+	if c.CSINumber != "" {
+		fmt.Printf("CSI#:       %s\n", c.CSINumber)
+	}
 	fmt.Printf("Analyst:    %s\n", c.Analyst)
 	fmt.Printf("Target:     %s (%s)\n", c.TargetIdentifier, c.TargetClass)
 	fmt.Printf("Profile:    %s\n", c.ProfileName)
@@ -291,6 +301,8 @@ func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string
 	}
 	return manifest.CaseSummary{
 		CaseID:      c.CaseID,
+		IRNumber:    c.IRNumber,
+		CSINumber:   c.CSINumber,
 		Analyst:     c.Analyst,
 		Target:      c.TargetIdentifier,
 		TargetClass: c.TargetClass,

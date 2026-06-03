@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -15,7 +16,20 @@ import (
 type Case struct {
 	// CaseID is the analyst-supplied case identifier.
 	// Format: free-form, but typically INC-YYYY-NNNN or similar.
+	// CaseID is the primary identifier and is always required. The case
+	// folder name is built from CaseID, regardless of whether IRNumber or
+	// CSINumber are also provided.
 	CaseID string `json:"case_id"`
+
+	// IRNumber is an optional cross-reference to an incident response ticket
+	// in another system. When present, must match format IR-####-####
+	// (four digits, hyphen, four digits — e.g., IR-2026-0418).
+	IRNumber string `json:"ir_number,omitempty"`
+
+	// CSINumber is an optional cross-reference to a CSI ticket in another
+	// system. When present, must match format CSI-###### (six digits —
+	// e.g., CSI-123456).
+	CSINumber string `json:"csi_number,omitempty"`
 
 	// Analyst is the name (or initials) of the team member running the collection.
 	// This is an honor-system field — not authenticated.
@@ -42,7 +56,15 @@ type Case struct {
 	SAHMVersion string `json:"sahm_version"`
 }
 
+// irNumberPattern matches IR-####-####, where # is a single digit.
+var irNumberPattern = regexp.MustCompile(`^IR-\d{4}-\d{4}$`)
+
+// csiNumberPattern matches CSI-######, where # is a single digit.
+var csiNumberPattern = regexp.MustCompile(`^CSI-\d{6}$`)
+
 // Validate returns an error if required fields are missing or invalid.
+// IRNumber and CSINumber are optional; if provided, they must match their
+// respective formats.
 func (c *Case) Validate() error {
 	if strings.TrimSpace(c.CaseID) == "" {
 		return fmt.Errorf("case ID is required")
@@ -56,13 +78,45 @@ func (c *Case) Validate() error {
 	if c.TargetClass != "workstation" && c.TargetClass != "server" && c.TargetClass != "unknown" {
 		return fmt.Errorf("target class must be one of: workstation, server, unknown (got %q)", c.TargetClass)
 	}
+
+	// Optional fields: validate format only when present.
+	if c.IRNumber != "" {
+		trimmed := strings.TrimSpace(c.IRNumber)
+		if !irNumberPattern.MatchString(trimmed) {
+			return fmt.Errorf("IR number must match format IR-####-#### (e.g., IR-2026-0418); got %q", c.IRNumber)
+		}
+		c.IRNumber = trimmed
+	}
+	if c.CSINumber != "" {
+		trimmed := strings.TrimSpace(c.CSINumber)
+		if !csiNumberPattern.MatchString(trimmed) {
+			return fmt.Errorf("CSI number must match format CSI-###### (e.g., CSI-123456); got %q", c.CSINumber)
+		}
+		c.CSINumber = trimmed
+	}
+
 	return nil
+}
+
+// PrimaryReference returns the most operationally relevant identifier for
+// display purposes. IRNumber takes priority when present, then CSINumber,
+// otherwise CaseID. The case folder name is always built from CaseID
+// regardless of this priority.
+func (c *Case) PrimaryReference() string {
+	if c.IRNumber != "" {
+		return c.IRNumber
+	}
+	if c.CSINumber != "" {
+		return c.CSINumber
+	}
+	return c.CaseID
 }
 
 // CaseDirName returns the directory name for this case.
 // Format: CASE-<sanitized_case_id>_<timestamp>
 // The timestamp is included to keep directory names unique even if the same
-// case ID is collected from multiple targets.
+// case ID is collected from multiple targets. IRNumber and CSINumber do not
+// affect the folder name; they appear in case.json and reports only.
 func (c *Case) CaseDirName() string {
 	sanitized := sanitizeForFilename(c.CaseID)
 	timestamp := c.CreatedAt.UTC().Format("20060102-150405")
