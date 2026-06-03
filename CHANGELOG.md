@@ -224,3 +224,53 @@ Several Phase 1 deliverables landed in one day.
   produces per-user CSVs.
 - Future parsers (ShimCache, AmCache, Prefetch parsing, etc.) will follow
   the same pattern.
+
+
+  ## 2026-06-03
+
+- Added prefetch parser to analyzer (sahm --analyze).
+- Reads collected .pf files from prefetch_collection module output.
+- Uses www.velocidex.com/golang/go-prefetch (MIT-licensed) for parsing.
+  Library handles MAM-compressed (LZ-XPRESS Huffman) Windows 10/11 prefetch
+  files transparently.
+- Output: lab_report/prefetch/prefetch.csv with columns for executable
+  name, kernel path, hash, version, file size, run count, files accessed
+  count, plus one row per (.pf file, last-run timestamp) pair so the
+  timeline is flat and sortable.
+- On test VM: parsed 437 .pf files in 245ms, zero errors.
+
+
+
+## 2026-06-03
+
+- Added optional IR# and CSI# fields to case metadata for cross-referencing
+  to external ticketing systems.
+- New CLI flags: --ir (format IR-####-####), --csi (format CSI-######).
+- Both fields are optional. When provided, format is validated; bad formats
+  fail with a clear error before collection starts.
+- IR# and CSI# appear in case.json (omitted when empty), the startup banner,
+  and case_report.txt — only when set.
+- Case folder name remains CASE-<case_id>_<timestamp>; IR/CSI do not affect
+  filesystem structure, only display.
+- PrimaryReference() helper on Case picks the most relevant display ID
+  (IR > CSI > CaseID) for future use.
+
+
+  ## 2026-06-03 (continued)
+
+- Introduced bulk vs primary artifact distinction in module results.
+- New BulkFiles field on module.Result tracks files collected via directory
+  copies (currently only Prefetch). These files are individually hashed in
+  the manifest — integrity is unaffected — but they no longer inflate the
+  "Artifacts" count in displays and reports.
+- Per-module status line now reads:
+    status=success ... artifacts=N bulk_files=N ...
+  with bulk_files appearing only when nonzero (other modules unchanged).
+- case_report.txt TOTALS section now reads:
+    Primary artifacts:     N
+    Bulk-collected files:  N    (when nonzero)
+    Total files in case:   N    (when bulk files present)
+- This separation matters as more bulk-collection modules arrive in Phase 2
+  (extended event channels, full winevt/Logs directory) which would otherwise
+  produce equally inflated counts.
+- Verified: 539 files in case folder, all hashed by manifest, --verify passes.
