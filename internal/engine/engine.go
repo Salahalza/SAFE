@@ -167,6 +167,14 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 		result.Modules = append(result.Modules, modResult)
 
 		info, warning, critical := modResult.CountBySeverity()
+		statusLine := fmt.Sprintf("      status=%s duration=%s artifacts=%d",
+			modResult.Status, modResult.Duration, len(modResult.Artifacts))
+		if modResult.BulkFiles > 0 {
+			statusLine += fmt.Sprintf(" bulk_files=%d", modResult.BulkFiles)
+		}
+		statusLine += fmt.Sprintf(" info=%d warning=%d critical=%d errors=%d\n",
+			info, warning, critical, len(modResult.Errors))
+
 		e.emitOrPrint(
 			ProgressEvent{
 				Kind:        EventModuleDone,
@@ -175,9 +183,7 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 				TotalCount:  len(p.Modules),
 				Result:      modResult,
 			},
-			fmt.Sprintf("      status=%s duration=%s artifacts=%d info=%d warning=%d critical=%d errors=%d\n",
-				modResult.Status, modResult.Duration,
-				len(modResult.Artifacts), info, warning, critical, len(modResult.Errors)),
+			statusLine,
 		)
 
 		if _, err := manifest.WriteModuleManifest(moduleDir, m.Name()); err != nil {

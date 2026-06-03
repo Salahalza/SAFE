@@ -38,6 +38,7 @@ type ModuleSummary struct {
 	Status        string
 	Duration      time.Duration
 	ArtifactCount int
+	BulkFiles     int
 	Findings      []FindingSummary
 	Errors        []string
 }
@@ -108,6 +109,7 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 	b.WriteString(strings.Repeat("-", 70) + "\n\n")
 
 	totalArtifacts := 0
+	totalBulkFiles := 0
 	totalInfo := 0
 	totalWarnings := 0
 	totalCritical := 0
@@ -115,6 +117,7 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 
 	for _, m := range s.Modules {
 		totalArtifacts += m.ArtifactCount
+		totalBulkFiles += m.BulkFiles
 		totalInfo += m.InfoCount()
 		totalWarnings += m.WarningCount()
 		totalCritical += m.CriticalCount()
@@ -123,6 +126,9 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 		b.WriteString(fmt.Sprintf("[%s] %s\n", strings.ToUpper(m.Status), m.Name))
 		b.WriteString(fmt.Sprintf("  Duration:  %s\n", m.Duration))
 		b.WriteString(fmt.Sprintf("  Artifacts: %d\n", m.ArtifactCount))
+		if m.BulkFiles > 0 {
+			b.WriteString(fmt.Sprintf("  Bulk files: %d\n", m.BulkFiles))
+		}
 
 		if len(m.Errors) > 0 {
 			b.WriteString(fmt.Sprintf("  Errors:    %d\n", len(m.Errors)))
@@ -176,12 +182,16 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 	b.WriteString(strings.Repeat("-", 70) + "\n")
 	b.WriteString("TOTALS\n")
 	b.WriteString(strings.Repeat("-", 70) + "\n\n")
-	b.WriteString(fmt.Sprintf("Modules run:       %d\n", len(s.Modules)))
-	b.WriteString(fmt.Sprintf("Artifacts:         %d\n", totalArtifacts))
-	b.WriteString(fmt.Sprintf("Critical:          %d\n", totalCritical))
-	b.WriteString(fmt.Sprintf("Warnings:          %d\n", totalWarnings))
-	b.WriteString(fmt.Sprintf("Info observations: %d\n", totalInfo))
-	b.WriteString(fmt.Sprintf("Errors:            %d\n", totalErrors))
+	b.WriteString(fmt.Sprintf("Modules run:           %d\n", len(s.Modules)))
+	b.WriteString(fmt.Sprintf("Primary artifacts:     %d\n", totalArtifacts))
+	if totalBulkFiles > 0 {
+		b.WriteString(fmt.Sprintf("Bulk-collected files:  %d\n", totalBulkFiles))
+		b.WriteString(fmt.Sprintf("Total files in case:   %d\n", totalArtifacts+totalBulkFiles))
+	}
+	b.WriteString(fmt.Sprintf("Critical:              %d\n", totalCritical))
+	b.WriteString(fmt.Sprintf("Warnings:              %d\n", totalWarnings))
+	b.WriteString(fmt.Sprintf("Info observations:     %d\n", totalInfo))
+	b.WriteString(fmt.Sprintf("Errors:                %d\n", totalErrors))
 	b.WriteString("\n")
 
 	b.WriteString(strings.Repeat("-", 70) + "\n")

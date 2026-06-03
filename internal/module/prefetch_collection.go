@@ -27,6 +27,13 @@ func (m *PrefetchCollection) RequiresVSS() bool         { return true }
 //
 // On SSDs and Server SKUs, Prefetch may be disabled. The module records
 // that fact and produces zero artifacts rather than failing.
+//
+// Reporting: this is a bulk-collection module. Individual .pf files are
+// copied to disk (and hashed by the manifest writer) but they are NOT
+// enumerated in result.Artifacts. Instead, result.BulkFiles records the
+// count. The case report shows primary artifacts and bulk-collected files
+// as separate numbers so the analyst gets a meaningful "things to look at"
+// count without Prefetch's hundreds of files inflating it.
 func (m *PrefetchCollection) Run(ctx *Context) Result {
 	started := time.Now().UTC()
 	result := Result{
@@ -123,28 +130,21 @@ func (m *PrefetchCollection) Run(ctx *Context) Result {
 			continue
 		}
 
-		artifact, err := describeArtifact(dstPath)
-		if err != nil {
-			result.AddWarning(name,
-				fmt.Sprintf("hash failed: %v", err))
-			continue
-		}
-
-		// Record the original source path.
-		artifact.SourcePath = filepath.Join(`C:\Windows\Prefetch`, name)
-		artifact.SourceSize = info.Size()
-		result.Artifacts = append(result.Artifacts, artifact)
-
+		// Note: we intentionally do NOT append per-file entries to
+		// result.Artifacts. The manifest writer walks the output directory
+		// and hashes every file, so integrity is preserved. The display
+		// totals stay meaningful because hundreds of .pf files don't
+		// inflate the artifact count.
 		pfCount++
 		totalBytes += info.Size()
 	}
 
-	// Summary findings.
+	// Summary findings and bulk count.
 	if pfCount == 0 {
-		// Prefetch dir exists but is empty.
 		result.AddInfo("prefetch_collection",
 			"Prefetch directory exists but contains no .pf files — likely disabled or recently cleared")
 	} else {
+		result.BulkFiles = pfCount
 		result.AddInfo("prefetch_collection",
 			fmt.Sprintf("collected %d .pf file(s), %d byte(s) total; skipped %d non-.pf entries and %d subdirectories",
 				pfCount, totalBytes, otherCount, skipped))

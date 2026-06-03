@@ -75,6 +75,16 @@ type Result struct {
 	Artifacts  []Artifact    `json:"artifacts"`
 	Findings   []Finding     `json:"findings,omitempty"`
 	Errors     []string      `json:"errors,omitempty"`
+	// BulkFiles is the count of secondary files collected by bulk operations
+	// like directory copies. These files are individually hashed in the manifest
+	// but conceptually represent one collection action, not many distinct
+	// forensic artifacts. Example: Prefetch copies every .pf file in
+	// C:\Windows\Prefetch — analyst treats it as one collected dataset, not
+	// hundreds of separate findings.
+	//
+	// When BulkFiles > 0, the corresponding entry in Artifacts is typically the
+	// directory or a summary descriptor, not the individual files.
+	BulkFiles int `json:"bulk_files,omitempty"`
 
 	// Warnings is kept for backwards compatibility but populated from Findings.
 	// Will be removed in a future version.

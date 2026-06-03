@@ -295,6 +295,7 @@ func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string
 			Status:        string(m.Status),
 			Duration:      m.Duration,
 			ArtifactCount: len(m.Artifacts),
+			BulkFiles:     m.BulkFiles,
 			Findings:      findings,
 			Errors:        m.Errors,
 		})
