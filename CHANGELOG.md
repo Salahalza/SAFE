@@ -274,3 +274,64 @@ Several Phase 1 deliverables landed in one day.
   (extended event channels, full winevt/Logs directory) which would otherwise
   produce equally inflated counts.
 - Verified: 539 files in case folder, all hashed by manifest, --verify passes.
+
+
+
+## 2026-06-03 (continued)
+
+- TUI updated to support IR# and CSI# optional fields.
+- Form fields now run: Case ID → IR# (optional) → CSI# (optional) → Analyst
+  → Target → Target Class → Profile → Notes → Submit.
+- Both new fields validate format when populated; empty values pass.
+- Confirm screen shows IR# and CSI# lines only when populated.
+- Polished TUI text throughout: form title, confirm prompt, progress
+  footer ("Time limit" instead of "Total budget"), complete screen prompt,
+  welcome subtitle now reads "Windows forensic acquisition for incident
+  response field work".
+
+
+  ## 2026-06-03 (continued)
+
+- Analyzer hardening across 8 small improvements:
+  - Status semantics: parsers now report success/partial/failed/skipped.
+    Partial = outputs produced AND errors present.
+  - ParseStats field on ParserResult surfaces per-parser counts (e.g.,
+    pf_files_parsed=478, total_entries=41).
+  - analyzer_result.json written to lab_report/ — same role as collection
+    result.json, makes the analyzer run a permanent record.
+  - manifest.sha256 written for lab_report/ — every parsed CSV is hashed,
+    so post-analysis tampering is detectable.
+  - Unknown UserAssist category GUIDs surfaced as errors so they're easy
+    to spot in batch runs. New GUIDs from Microsoft over time will trigger
+    these reports.
+  - Prefetch skips CSV creation when there are no rows to write.
+  - Named constants for UserAssist binary entry offsets.
+  - DESIGN_QUESTIONS.md notes the output-path-ownership architecture
+    question for future cross-source parsers.
+- Test run found 4 unknown UserAssist GUIDs on Windows 11 24H2 — to be
+  documented and added to guidCategoryNames as authoritative references
+  emerge.
+
+
+  ## 2026-06-03 (continued)
+
+- TUI welcome screen restructured into a three-option menu:
+  - Start a new case (existing collection flow)
+  - Analyze a case folder (runs sahm --analyze via TUI)
+  - View a case report (opens case_report.txt in a scrollable viewer)
+- Welcome screen now features a multi-row block-letter "SAHM" banner.
+- Filepicker integration (github.com/charmbracelet/bubbles/filepicker)
+  for selecting case folders in both Analyze and View Report flows.
+- Title styling updated to dark-text-on-blue-bar across all screens for
+  stronger visual hierarchy.
+- Container padding increased for more spacious feel.
+- Analyzer launched from TUI runs same parser registry as --analyze CLI flag.
+- Report viewer (current implementation) displays case_report.txt verbatim
+  in a scrollable text pane. Beautiful structured rendering planned as a
+  follow-up session (see DESIGN_QUESTIONS.md).
+
+
+
+  git add CHANGELOG.md
+git commit -m "changelog: TUI three-option welcome and filepicker integration"
+git push
