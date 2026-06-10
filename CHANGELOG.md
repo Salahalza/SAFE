@@ -331,7 +331,24 @@ Several Phase 1 deliverables landed in one day.
   follow-up session (see DESIGN_QUESTIONS.md).
 
 
+## 2026-06-10
 
-  git add CHANGELOG.md
-git commit -m "changelog: TUI three-option welcome and filepicker integration"
-git push
+- TUI report viewer rebuilt with structured layout (replaces plain text scroll).
+- New file internal/tui/report_render.go renders from result.json + case.json
+  rather than parsing case_report.txt. Sections include:
+  - Bordered header card with case metadata in two-column layout
+  - Status badge (colored pill: green/amber/red by status)
+  - At-a-glance totals line
+  - Critical/warning findings shown in dedicated bordered cards above modules
+  - Modules table with status icon, name, duration, artifact and bulk counts
+  - Observations grouped by module
+  - Verification footer with the sahm --verify command
+- Uses bubbles/viewport for terminal-size-aware scrolling.
+- WindowSizeMsg handler in tui.go resizes the viewport when the terminal
+  resizes.
+- LIMITATIONS.md: added "Antivirus interaction" section documenting expected
+  false-positive detections (Defender ML "Settings Modifier" category) and
+  recommended deployment mitigations (exclusions, code signing).
+- Known limitation: rounded unicode borders and some severity icons fall back
+  to '?' characters on plain Windows PowerShell. Follow-up commit will swap
+  to ASCII-safe character set.
