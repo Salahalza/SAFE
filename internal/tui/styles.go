@@ -77,74 +77,6 @@ var (
 
 // Card styles for the report viewer
 
-// cardStyle is the bordered container for the metadata header card.
-// Uses rounded unicode corners; falls back gracefully on terminals that
-// don't render the corner glyphs by showing them as their nearest ASCII.
-var cardStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.Color("#7DD3FC")).
-	Padding(1, 2).
-	MarginBottom(1)
-
-// attentionCardStyle highlights the critical/warning findings section.
-// Amber border draws the eye without being alarming.
-var attentionCardStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.Color("#FCD34D")).
-	Padding(1, 2).
-	MarginBottom(1)
-
-// criticalCardStyle for actual critical findings — red border.
-var criticalCardStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
-	BorderForeground(lipgloss.Color("#F87171")).
-	Padding(1, 2).
-	MarginBottom(1)
-
-// reportSectionTitleStyle is the heading inside a report section.
-// Bold, brand color, with a small bottom margin.
-var reportSectionTitleStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#7DD3FC")).
-	Bold(true).
-	MarginBottom(1)
-
-// statusBadgeStyle is the colored status pill (SUCCESS/PARTIAL/FAILED/DEGRADED).
-// Background-filled with dark text for high contrast.
-var statusBadgeStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#0F172A")).
-	Padding(0, 1).
-	Bold(true)
-
-// metadataLabelStyle styles labels like "Case ID", "Target", "Analyst".
-var metadataLabelStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#64748B"))
-
-// metadataValueStyle styles the corresponding values.
-var metadataValueStyle = lipgloss.NewStyle().
-	Foreground(lipgloss.Color("#E2E8F0"))
-
-// moduleSuccessStyle / moduleFailedStyle / etc — module status icons.
-var (
-	moduleSuccessStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#86EFAC")).Bold(true)
-	moduleWarnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D")).Bold(true)
-	moduleFailStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true)
-	moduleSkipStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#64748B"))
-)
-
-// findingSeverityStyle returns the appropriate icon and style for a severity.
-func findingSeverityStyle(severity string) (icon string, style lipgloss.Style) {
-	switch severity {
-	case "critical":
-		return "✗", lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true)
-	case "warning":
-		return "⚠", lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D"))
-	case "info":
-		return "ℹ", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
-	default:
-		return "•", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
-	}
-}
-
 // statusBadgeColors returns the appropriate background color for a status badge.
 func statusBadgeColors(status string) (bg lipgloss.Color) {
 	switch strings.ToUpper(status) {
@@ -167,3 +99,84 @@ const sahmBanner = `███████  █████  ██   ██ █�
 ███████ ███████ ███████ ██ ████ ██
      ██ ██   ██ ██   ██ ██  ██  ██
 ███████ ██   ██ ██   ██ ██      ██`
+
+// Card styles for the report viewer
+
+// cardStyle is the bordered container for the metadata header card.
+var cardStyle = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("#7DD3FC")).
+	Padding(1, 2).
+	MarginBottom(1)
+
+// attentionCardStyle highlights the critical/warning findings section.
+var attentionCardStyle = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("#FCD34D")).
+	Padding(1, 2).
+	MarginBottom(1)
+
+// criticalCardStyle for critical findings — red border.
+var criticalCardStyle = lipgloss.NewStyle().
+	Border(lipgloss.RoundedBorder()).
+	BorderForeground(lipgloss.Color("#F87171")).
+	Padding(1, 2).
+	MarginBottom(1)
+
+// reportSectionTitleStyle is the heading inside a report section.
+var reportSectionTitleStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#7DD3FC")).
+	Bold(true).
+	MarginBottom(1)
+
+// metadataLabelStyle styles labels like "Case ID", "Target", "Analyst".
+var metadataLabelStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#64748B"))
+
+// metadataValueStyle styles the corresponding values.
+var metadataValueStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#E2E8F0"))
+
+// module status icon styles
+var (
+	moduleSuccessStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#86EFAC")).Bold(true)
+	moduleWarnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D")).Bold(true)
+	moduleFailStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true)
+	moduleSkipStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#64748B"))
+)
+
+// findingSeverityStyle returns the icon and style for a severity level.
+func findingSeverityStyle(severity string) (icon string, style lipgloss.Style) {
+	switch severity {
+	case "critical":
+		return "✗", lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true)
+	case "warning":
+		return "⚠", lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D"))
+	case "info":
+		return "ℹ", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
+	default:
+		return "•", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
+	}
+}
+
+// statusBadgeStyle returns a styled status pill (SUCCESS / PARTIAL / FAILED / DEGRADED).
+func statusBadgeStyle(status string) string {
+	upper := strings.ToUpper(status)
+	var bg lipgloss.Color
+	switch upper {
+	case "SUCCESS":
+		bg = lipgloss.Color("#86EFAC")
+	case "PARTIAL":
+		bg = lipgloss.Color("#FCD34D")
+	case "FAILED", "DEGRADED":
+		bg = lipgloss.Color("#F87171")
+	default:
+		bg = lipgloss.Color("#94A3B8")
+	}
+	return lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#0F172A")).
+		Background(bg).
+		Bold(true).
+		Padding(0, 1).
+		Render("● " + upper)
+}

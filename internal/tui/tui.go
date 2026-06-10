@@ -10,6 +10,7 @@ import (
 	"sahm/internal/profile"
 
 	"github.com/charmbracelet/bubbles/filepicker"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -110,10 +111,10 @@ type analyzeFinishedMsg struct {
 	err    error
 }
 
-// reportLoadedMsg carries the loaded case_report.txt contents.
+// reportLoadedMsg carries the loaded and parsed report data.
 type reportLoadedMsg struct {
-	content string
-	err     error
+	data *reportData
+	err  error
 }
 
 type welcomeChoice int
@@ -149,11 +150,15 @@ type model struct {
 	analyzeSpinTick int
 
 	// Report viewer state
-	reportPicker  filepicker.Model
-	reportPath    string
-	reportContent string
-	reportErr     error
-	reportScrollY int
+	reportPicker   filepicker.Model
+	reportPath     string
+	reportData     *reportData
+	reportErr      error
+	reportViewport viewport.Model
+
+	// Terminal dimensions (set by WindowSizeMsg)
+	termWidth  int
+	termHeight int
 }
 
 func initialModelWithRunner(registry ProfileLookup, r Runner, analyzeFn AnalyzerRunner) model {
@@ -169,9 +174,6 @@ func initialModelWithRunner(registry ProfileLookup, r Runner, analyzeFn Analyzer
 }
 
 // newCaseFolderPicker creates a filepicker configured for selecting case folders.
-// Case folders are directories named CASE-<id>_<timestamp>/. The picker allows
-// directory selection, hides regular files for clarity, and starts in the
-// current working directory.
 func newCaseFolderPicker() filepicker.Model {
 	fp := filepicker.New()
 	fp.DirAllowed = true
@@ -203,6 +205,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
+	// Track terminal size for viewport sizing.
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.termWidth = sz.Width
+		m.termHeight = sz.Height
+		// If the report viewport already exists, resize it.
+		if m.reportData != nil {
+			vpHeight := sz.Height - 3
+			if vpHeight < 10 {
+				vpHeight = 10
+			}
+			m.reportViewport = initReportViewport(sz.Width, vpHeight, m.reportData)
+		}
+	}
+
 	// Global messages that apply regardless of screen.
 	switch ev := msg.(type) {
 	case progressEventMsg:
@@ -231,9 +247,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.screen = screenAnalyzeComplete
 		return m, nil
 	case reportLoadedMsg:
-		m.reportContent = ev.content
+		m.reportData = ev.data
 		m.reportErr = ev.err
-		m.reportScrollY = 0
+		if ev.err == nil && ev.data != nil {
+			// Size viewport to terminal, leaving room for footer (3 lines).
+			vpHeight := m.termHeight - 3
+			if vpHeight < 10 {
+				vpHeight = 10
+			}
+			vpWidth := m.termWidth
+			if vpWidth < 60 {
+				vpWidth = 80
+			}
+			m.reportViewport = initReportViewport(vpWidth, vpHeight, ev.data)
+		}
 		m.screen = screenReportViewer
 		return m, nil
 	}
@@ -326,8 +353,6 @@ func (m *model) startCollectionCmd() tea.Cmd {
 }
 
 // startAnalyzeCmd kicks off the analyzer against the chosen case folder.
-// The analyzer is fast enough today that we don't bother with a progress
-// channel — we show a spinner and wait for the analyzeFinishedMsg.
 func (m *model) startAnalyzeCmd() tea.Cmd {
 	caseDir := m.analyzeCaseDir
 	analyzeFn := m.analyzeFn
