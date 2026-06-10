@@ -125,3 +125,20 @@ network connections, fresh memory inspection — not in duplicating disk imaging
 
 **For cases requiring full disk image:** Use existing imaging tools. SAHM
 output can be stored alongside the disk image in the same case folder.
+
+
+## Antivirus interaction
+
+SAHM performs forensic operations that resemble suspicious behavior to
+heuristic AV engines: registry hive copies, VSS shadow creation, process
+enumeration, persistence location enumeration. This is unavoidable —
+the same behaviors that make SAHM useful for IR also trigger AV ML models.
+
+Expect false-positive detections, particularly:
+- Microsoft Defender ML (categories like "Settings Modifier")
+- Heuristic detections by enterprise AV on first deployment
+
+Deployment recommendations:
+- Add SAHM's installation path to AV exclusions before use
+- For long-term deployment, sign sahm.exe with an authenticode certificate
+- Submit to Microsoft and major AV vendors for whitelisting (Phase 8)
