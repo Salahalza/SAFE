@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"time"
 
+	"sahm/internal/analyzer"
 	"sahm/internal/casemeta"
 	"sahm/internal/engine"
 	"sahm/internal/profile"
 
+	"github.com/charmbracelet/bubbles/filepicker"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -34,12 +36,20 @@ func (f runnerFunc) Run(c *casemeta.Case, p *profile.Profile, progressCh chan<- 
 	return f(c, p, progressCh)
 }
 
+// AnalyzerRunner is what the TUI uses to run analysis on a case folder.
+type AnalyzerRunner func(caseDir string) (*analyzer.Result, error)
+
 // RunWithCollection launches the TUI and runs collection inside it.
+// This is the entry point invoked by main.go when --tui is passed.
 func RunWithCollection(
 	registry ProfileLookup,
 	runFn func(c *casemeta.Case, p *profile.Profile, progressCh chan<- engine.ProgressEvent) engine.CaseResult,
+	analyzeFn AnalyzerRunner,
 ) (*RunResult, error) {
-	p := tea.NewProgram(initialModelWithRunner(registry, runnerFunc(runFn)), tea.WithAltScreen())
+	p := tea.NewProgram(
+		initialModelWithRunner(registry, runnerFunc(runFn), analyzeFn),
+		tea.WithAltScreen(),
+	)
 	finalModel, err := p.Run()
 	if err != nil {
 		return nil, fmt.Errorf("tui error: %w", err)
@@ -72,10 +82,18 @@ type screen int
 
 const (
 	screenWelcome screen = iota
+	// Collection flow
 	screenForm
 	screenConfirm
 	screenProgress
 	screenComplete
+	// Analyze flow
+	screenAnalyzePicker
+	screenAnalyzeProgress
+	screenAnalyzeComplete
+	// Report viewer flow
+	screenReportPicker
+	screenReportViewer
 )
 
 // progressDoneMsg signals the progress channel has closed.
@@ -86,8 +104,31 @@ type collectionFinishedMsg struct {
 	result engine.CaseResult
 }
 
+// analyzeFinishedMsg carries the analyzer result.
+type analyzeFinishedMsg struct {
+	result *analyzer.Result
+	err    error
+}
+
+// reportLoadedMsg carries the loaded case_report.txt contents.
+type reportLoadedMsg struct {
+	content string
+	err     error
+}
+
+type welcomeChoice int
+
+const (
+	welcomeStartCollection welcomeChoice = iota
+	welcomeRunAnalyzer
+	welcomeViewReport
+	numWelcomeChoices
+)
+
 type model struct {
-	screen           screen
+	screen screen
+
+	// Collection state
 	form             formModel
 	progress         progressModel
 	submitted        bool
@@ -95,15 +136,52 @@ type model struct {
 	registry         ProfileLookup
 	runner           Runner
 	progressCh       chan engine.ProgressEvent
+
+	// Welcome state
+	welcomeCursor welcomeChoice
+
+	// Analyzer state
+	analyzeFn       AnalyzerRunner
+	analyzePicker   filepicker.Model
+	analyzeCaseDir  string
+	analyzeResult   *analyzer.Result
+	analyzeErr      error
+	analyzeSpinTick int
+
+	// Report viewer state
+	reportPicker  filepicker.Model
+	reportPath    string
+	reportContent string
+	reportErr     error
+	reportScrollY int
 }
 
-func initialModelWithRunner(registry ProfileLookup, r Runner) model {
+func initialModelWithRunner(registry ProfileLookup, r Runner, analyzeFn AnalyzerRunner) model {
 	return model{
-		screen:   screenWelcome,
-		form:     newFormModel(),
-		registry: registry,
-		runner:   r,
+		screen:        screenWelcome,
+		form:          newFormModel(),
+		registry:      registry,
+		runner:        r,
+		analyzeFn:     analyzeFn,
+		analyzePicker: newCaseFolderPicker(),
+		reportPicker:  newCaseFolderPicker(),
 	}
+}
+
+// newCaseFolderPicker creates a filepicker configured for selecting case folders.
+// Case folders are directories named CASE-<id>_<timestamp>/. The picker allows
+// directory selection, hides regular files for clarity, and starts in the
+// current working directory.
+func newCaseFolderPicker() filepicker.Model {
+	fp := filepicker.New()
+	fp.DirAllowed = true
+	fp.FileAllowed = false
+	fp.ShowHidden = false
+	fp.ShowPermissions = false
+	fp.ShowSize = false
+	fp.AutoHeight = false
+	fp.SetHeight(15)
+	return fp
 }
 
 func initialModel() model {
@@ -114,7 +192,10 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return tea.Batch(
+		m.analyzePicker.Init(),
+		m.reportPicker.Init(),
+	)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -122,6 +203,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
+	// Global messages that apply regardless of screen.
 	switch ev := msg.(type) {
 	case progressEventMsg:
 		m.progress.applyEvent(engine.ProgressEvent(ev))
@@ -132,13 +214,27 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.progress.elapsed = time.Since(m.progress.startedAt)
 			return m, tickEvery(100 * time.Millisecond)
 		}
+		if m.screen == screenAnalyzeProgress {
+			m.analyzeSpinTick++
+			return m, tickEvery(100 * time.Millisecond)
+		}
 	case collectionFinishedMsg:
 		r := ev.result
 		m.collectionResult = &r
 		m.screen = screenComplete
 		return m, nil
 	case progressDoneMsg:
-		// Channel closed, wait for collectionFinishedMsg.
+		return m, nil
+	case analyzeFinishedMsg:
+		m.analyzeResult = ev.result
+		m.analyzeErr = ev.err
+		m.screen = screenAnalyzeComplete
+		return m, nil
+	case reportLoadedMsg:
+		m.reportContent = ev.content
+		m.reportErr = ev.err
+		m.reportScrollY = 0
+		m.screen = screenReportViewer
 		return m, nil
 	}
 
@@ -151,6 +247,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateConfirm(msg)
 	case screenComplete:
 		return m.updateComplete(msg)
+	case screenAnalyzePicker:
+		return m.updateAnalyzePicker(msg)
+	case screenAnalyzeComplete:
+		return m.updateAnalyzeComplete(msg)
+	case screenReportPicker:
+		return m.updateReportPicker(msg)
+	case screenReportViewer:
+		return m.updateReportViewer(msg)
 	}
 	return m, nil
 }
@@ -158,7 +262,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	switch m.screen {
 	case screenWelcome:
-		return welcomeView()
+		return welcomeView(m.welcomeCursor)
 	case screenForm:
 		return m.form.View()
 	case screenConfirm:
@@ -167,6 +271,16 @@ func (m model) View() string {
 		return m.progress.View()
 	case screenComplete:
 		return m.completeView()
+	case screenAnalyzePicker:
+		return m.analyzePickerView()
+	case screenAnalyzeProgress:
+		return m.analyzeProgressView()
+	case screenAnalyzeComplete:
+		return m.analyzeCompleteView()
+	case screenReportPicker:
+		return m.reportPickerView()
+	case screenReportViewer:
+		return m.reportViewerView()
 	}
 	return ""
 }
@@ -174,6 +288,8 @@ func (m model) View() string {
 func (m model) buildCase() *casemeta.Case {
 	return &casemeta.Case{
 		CaseID:           m.form.caseID.Value(),
+		IRNumber:         m.form.irNumber.Value(),
+		CSINumber:        m.form.csiNumber.Value(),
 		Analyst:          m.form.analyst.Value(),
 		TargetIdentifier: m.form.target.Value(),
 		TargetClass:      m.form.targetClass,
@@ -209,6 +325,22 @@ func (m *model) startCollectionCmd() tea.Cmd {
 	)
 }
 
+// startAnalyzeCmd kicks off the analyzer against the chosen case folder.
+// The analyzer is fast enough today that we don't bother with a progress
+// channel — we show a spinner and wait for the analyzeFinishedMsg.
+func (m *model) startAnalyzeCmd() tea.Cmd {
+	caseDir := m.analyzeCaseDir
+	analyzeFn := m.analyzeFn
+
+	return tea.Batch(
+		func() tea.Msg {
+			result, err := analyzeFn(caseDir)
+			return analyzeFinishedMsg{result: result, err: err}
+		},
+		tickEvery(100*time.Millisecond),
+	)
+}
+
 func listenForProgress(ch <-chan engine.ProgressEvent) tea.Cmd {
 	return func() tea.Msg {
 		ev, ok := <-ch
@@ -235,7 +367,7 @@ func tickEvery(d time.Duration) tea.Cmd {
 	})
 }
 
-// Run is the legacy entry point.
+// Run is the legacy entry point for collection-only flow.
 func Run() (*casemeta.Case, error) {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	finalModel, err := p.Run()

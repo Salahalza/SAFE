@@ -119,7 +119,7 @@ func main() {
 			return result
 		}
 
-		runRes, err := tui.RunWithCollection(registry, runFn)
+		runRes, err := tui.RunWithCollection(registry, runFn, runAnalyzerFromTUI)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "TUI error: %v\n", err)
 			os.Exit(1)
@@ -592,4 +592,13 @@ func runAnalyzer(caseDir string) {
 			fmt.Printf("  ⚠ %s\n", e)
 		}
 	}
+}
+
+// runAnalyzerFromTUI is the analyzer entry point passed to the TUI. It
+// wraps the same analyzer infrastructure used by the --analyze CLI flag.
+func runAnalyzerFromTUI(caseDir string) (*analyzer.Result, error) {
+	registry := analyzer.NewRegistry()
+	registry.Register(&analyzer.UserAssistParser{})
+	registry.Register(&analyzer.PrefetchParser{})
+	return analyzer.Run(caseDir, registry.All())
 }
