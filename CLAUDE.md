@@ -247,6 +247,9 @@ before commit.
 
 **Always update CHANGELOG.md** when committing functional changes.
 
+**Don't add Co-Authored-By tags to commits.** Commit messages should be
+concise and not reference the AI assistant.
+
 ### File editing preferences
 
 - Salah prefers FULL FILE REPLACEMENTS over partial diffs when there's
