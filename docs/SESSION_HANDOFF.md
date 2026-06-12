@@ -1,7 +1,7 @@
 # SESSION HANDOFF
 
-Last updated: 2026-06-10
-Last assistant: Web Claude (this document hands off to Claude Code in VSCode)
+Last updated: 2026-06-12
+Last assistant: Claude Code (VSCode)
 
 This document captures the current state of the project, what's in flight,
 and what to do next. Read this at the start of every Claude Code session
@@ -11,16 +11,16 @@ to load context.
 
 ## Where We Are
 
-Phase 1 is complete and committed. The project is in a clean, working state
-on the `main` branch. All commits are pushed to origin.
+Phase 1 is complete and Session M1 (ASCII fallback + analyze-flow testing)
+is done. The project is in a clean, working state on the `main` branch.
+All commits are pushed to origin.
 
 **Latest commits** (newest first):
-- `70b4afe` changelog: structured TUI report viewer and AV false-positive note
-- `fbd92a9` docs: add antivirus false-positive note to LIMITATIONS.md
-- `6867b11` tui: structured report viewer with viewport
-- `db9def3` changelog: TUI three-option welcome and filepicker integration
-- `565b23b` tui: add three-option welcome ... (duplicate, see CLAUDE.md)
-- `6457ef9` tui: add three-option welcome ... (real commit)
+- `85f1c70` journal: session 2026-06-12 — ASCII fallback and TUI width fixes
+- `8c784a2` docs: rename the journal notes section heading for clarity
+- `473c971` docs: forbid Co-Authored-By and AI references in commit messages
+- `586df0e` changelog: Session M1 ASCII fallback and TUI width fixes
+- `afb42e6` tui: ASCII-safe rendering for plain Windows PowerShell
 
 **What works:**
 - Collection via `sahm --tui` or CLI flags
@@ -35,27 +35,31 @@ on the `main` branch. All commits are pushed to origin.
 - Block-letter SAHM banner on welcome screen
 
 **What's broken or ugly:**
-- Plain Windows PowerShell renders some unicode characters as `?`
 - AV false positive on Defender (documented; not a real issue)
 - Two duplicate commits in history (cosmetic only)
+- Minor cosmetic follow-ups from M1: non-deterministic `stats:` map order
+  in the analyze view, and unwrapped analyze-header paths on very narrow
+  windows (both tracked in docs/journal/2026-06-12-ascii-fallback.md)
+
+**Resolved in M1:**
+- Plain Windows PowerShell unicode rendering — full `internal/tui/` package
+  now ASCII-safe; report-viewer and analyze-view width clipping fixed;
+  analyze flow verified end-to-end on the VM
 
 ---
 
 ## Immediate Next Steps
 
-The next three sessions are migration-focused — getting comfortable with
-Claude Code and closing Phase 1 loose ends. See docs/MIGRATION_PLAN.md
-for detail.
+The migration-focused sessions close Phase 1 loose ends before Phase 2.
+See docs/MIGRATION_PLAN.md for detail.
 
-### Session M1: ASCII character fallback + analyze flow testing
-**Priority:** HIGH (next session)
-**Effort:** 60-90 min
+### Session M1: ASCII character fallback + analyze flow testing — DONE (2026-06-12)
+Full `internal/tui/` package made ASCII-safe for plain Windows PowerShell,
+report-viewer/analyze-view width clipping fixed, analyze flow verified
+end-to-end on the VM. Commits `afb42e6`..`85f1c70`. See
+docs/journal/2026-06-12-ascii-fallback.md.
 
-Plain Windows PowerShell renders rounded borders and unicode severity icons
-as `?` characters. Switch to ASCII-safe characters. Also test analyze flow
-end-to-end.
-
-### Session M2: README update
+### Session M2: README update — CURRENT SESSION
 **Priority:** MEDIUM
 **Effort:** 60-90 min
 
