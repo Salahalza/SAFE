@@ -49,8 +49,23 @@ type Case struct {
 	// ProfileName is which profile was selected (set by the engine, not analyst).
 	ProfileName string `json:"profile_name"`
 
+	// ProfileVersion is the version of the selected profile. Recorded for
+	// reproducibility — the same profile name can change which modules it runs
+	// across releases, so the version pins exactly what was collected.
+	ProfileVersion string `json:"profile_version,omitempty"`
+
 	// CreatedAt is when the case was initialized (UTC).
 	CreatedAt time.Time `json:"created_at"`
+
+	// EndedAt is when collection finished (UTC). Zero until the run completes;
+	// case.json is rewritten after the run to record it.
+	EndedAt time.Time `json:"ended_at,omitempty"`
+
+	// ShadowID is the Volume Shadow Copy used for this case, if any. Captured
+	// for the audit trail (architectural principle #3) so the case-identity file
+	// records which point-in-time snapshot the locked-file artifacts came from.
+	// Empty when no module required VSS. Populated by the post-run rewrite.
+	ShadowID string `json:"shadow_id,omitempty"`
 
 	// SAFEVersion is the version of the tool that ran this collection.
 	SAFEVersion string `json:"safe_version"`

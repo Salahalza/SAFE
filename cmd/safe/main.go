@@ -69,7 +69,7 @@ func main() {
 		}
 		fmt.Println("Status: FAILED")
 		if len(result.Missing) > 0 {
-			fmt.Println("\nMissing files:")
+			fmt.Println("\nMissing files (in manifest, not on disk):")
 			for _, m := range result.Missing {
 				fmt.Printf("  %s\n", m)
 			}
@@ -78,6 +78,12 @@ func main() {
 			fmt.Println("\nHash mismatches:")
 			for _, m := range result.Mismatches {
 				fmt.Printf("  %s\n", m)
+			}
+		}
+		if len(result.Extra) > 0 {
+			fmt.Println("\nExtra files (on disk, not in any manifest — possible tampering):")
+			for _, e := range result.Extra {
+				fmt.Printf("  %s\n", e)
 			}
 		}
 		os.Exit(1)
@@ -103,17 +109,24 @@ func main() {
 
 		runFn := func(c *casemeta.Case, p *profile.Profile, progressCh chan<- engine.ProgressEvent) engine.CaseResult {
 			c.SAFEVersion = safeVersion
+			c.ProfileVersion = p.Version
 			caseDir := filepath.Join(*outputDir, c.CaseDirName())
 			_ = c.WriteToCase(caseDir)
 			eng := engine.New(caseDir)
 			eng.ProgressCh = progressCh
 			result := eng.Run(p)
 
+			// Rewrite case.json now that the run is done, recording the shadow ID
+			// (audit trail, principle #3) and end time that weren't known up front.
+			c.ShadowID = result.ShadowID
+			c.EndedAt = result.EndedAt
+			_ = c.WriteToCase(caseDir)
+
 			resultPath := filepath.Join(caseDir, "result.json")
 			if data, err := json.MarshalIndent(result, "", "  "); err == nil {
 				_ = os.WriteFile(resultPath, data, 0o644)
 			}
-			summary := buildCaseSummary(c, result, safeVersion)
+			summary := buildCaseSummary(c, result, safeVersion, p.Version, caseDir)
 			_ = manifest.WriteCaseReport(caseDir, summary)
 			_ = manifest.WriteCaseManifest(caseDir, c.CaseID)
 			return result
@@ -221,12 +234,21 @@ func main() {
 	}
 	fmt.Println()
 
+	c.ProfileVersion = p.Version
 	if err := c.WriteToCase(caseDir); err != nil {
 		fatalf("write case metadata: %v", err)
 	}
 
 	eng := engine.New(caseDir)
 	result := eng.Run(p)
+
+	// Rewrite case.json now that the run is done, recording the shadow ID
+	// (audit trail, principle #3) and end time that weren't known up front.
+	c.ShadowID = result.ShadowID
+	c.EndedAt = result.EndedAt
+	if err := c.WriteToCase(caseDir); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to rewrite case.json: %v\n", err)
+	}
 
 	fmt.Println()
 	fmt.Printf("Final status:  %s\n", result.Status)
@@ -238,7 +260,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write result.json: %v\n", err)
 	}
 
-	summary := buildCaseSummary(c, result, safeVersion)
+	summary := buildCaseSummary(c, result, safeVersion, p.Version, caseDir)
 	if err := manifest.WriteCaseReport(caseDir, summary); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write case report: %v\n", err)
 	} else {
@@ -280,7 +302,7 @@ func populateTUIProfiles(r *profile.Registry) {
 	}
 }
 
-func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string) manifest.CaseSummary {
+func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version, profileVersion, caseDir string) manifest.CaseSummary {
 	mods := make([]manifest.ModuleSummary, 0, len(result.Modules))
 	for _, m := range result.Modules {
 		findings := make([]manifest.FindingSummary, 0, len(m.Findings))
@@ -302,21 +324,70 @@ func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string
 		})
 	}
 	return manifest.CaseSummary{
-		CaseID:      c.CaseID,
-		IRNumber:    c.IRNumber,
-		CSINumber:   c.CSINumber,
-		Analyst:     c.Analyst,
-		Target:      c.TargetIdentifier,
-		TargetClass: c.TargetClass,
-		Notes:       c.Notes,
-		Profile:     c.ProfileName,
-		SAFEVersion: version,
-		StartedAt:   result.StartedAt,
-		EndedAt:     result.EndedAt,
-		Duration:    result.Duration,
-		Status:      result.Status,
-		Modules:     mods,
+		CaseID:         c.CaseID,
+		IRNumber:       c.IRNumber,
+		CSINumber:      c.CSINumber,
+		Analyst:        c.Analyst,
+		Target:         c.TargetIdentifier,
+		TargetClass:    c.TargetClass,
+		Notes:          c.Notes,
+		Profile:        c.ProfileName,
+		ProfileVersion: profileVersion,
+		SAFEVersion:    version,
+		CollectedHost:  collectedHostname(caseDir),
+		ShadowID:       result.ShadowID,
+		TotalBytes:     caseModuleBytes(caseDir),
+		StartedAt:      result.StartedAt,
+		EndedAt:        result.EndedAt,
+		Duration:       result.Duration,
+		Status:         result.Status,
+		Modules:        mods,
 	}
+}
+
+// caseModuleBytes returns the total size on disk of all collected module
+// artifacts (everything under <caseDir>/modules). Computed by walking the
+// filesystem rather than summing reported artifact sizes, so it stays accurate
+// even for bulk-collected files whose individual sizes the result does not
+// carry. Best-effort: returns what it can sum, ignoring walk errors.
+func caseModuleBytes(caseDir string) int64 {
+	var total int64
+	modulesDir := filepath.Join(caseDir, "modules")
+	_ = filepath.Walk(modulesDir, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if !info.IsDir() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total
+}
+
+// collectedHostname returns the hostname captured by the system_metadata
+// module, distinct from the analyst's free-text target label. Best-effort:
+// returns "" if the artifact is absent or unreadable. The module index prefix
+// (e.g. 04_) varies by profile, so the directory is matched by glob.
+func collectedHostname(caseDir string) string {
+	matches, _ := filepath.Glob(filepath.Join(caseDir, "modules", "*_system_metadata", "hostname.txt"))
+	for _, m := range matches {
+		data, err := os.ReadFile(m)
+		if err != nil {
+			continue
+		}
+		if host := strings.TrimSpace(string(data)); host != "" {
+			// hostname.txt may carry a trailing newline or multiple lines; take
+			// the first non-empty line.
+			if idx := strings.IndexAny(host, "\r\n"); idx >= 0 {
+				host = strings.TrimSpace(host[:idx])
+			}
+			if host != "" {
+				return host
+			}
+		}
+	}
+	return ""
 }
 
 func runDryRun(c *casemeta.Case, p *profile.Profile, outputDir string, skipPreflight bool) bool {
