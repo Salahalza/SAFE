@@ -209,6 +209,27 @@ func writeLabReportManifest(labReportDir string) error {
 	return os.WriteFile(manifestPath, []byte(content), 0o644)
 }
 
+// csvSafe neutralizes spreadsheet formula injection in a CSV field. The
+// encoding/csv writer quotes delimiters correctly but does nothing about a
+// value a spreadsheet (Excel, LibreOffice) would evaluate as a formula — one
+// beginning with '=', '+', '-', '@', or a leading tab/CR. Several analyzer
+// columns carry attacker-influenceable free text (a program path a malicious
+// actor chose to run, a prefetch executable name), so a crafted value like
+// "=cmd|'/c calc'!A1" could execute when an analyst opens the CSV. Prefixing
+// such a value with a single quote forces the spreadsheet to treat it as literal
+// text without changing what a plain text/grep reader sees in any meaningful way.
+// Apply only to free-text columns, never to numeric or timestamp columns.
+func csvSafe(s string) string {
+	if s == "" {
+		return s
+	}
+	switch s[0] {
+	case '=', '+', '-', '@', '\t', '\r':
+		return "'" + s
+	}
+	return s
+}
+
 // hashFile returns the SHA-256 hex digest of a file's contents.
 func hashFile(path string) (string, error) {
 	f, err := os.Open(path)

@@ -164,9 +164,9 @@ func buildPrefetchRow(filename string, info *prefetch.PrefetchInfo, runIndex int
 		runTimeStr = runTime.UTC().Format(time.RFC3339)
 	}
 	return []string{
-		filename,
-		info.Executable,
-		info.Path,
+		csvSafe(filename),
+		csvSafe(info.Executable),
+		csvSafe(info.Path),
 		info.Hash,
 		info.Version,
 		fmt.Sprintf("%d", info.FileSize),

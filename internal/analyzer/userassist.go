@@ -277,7 +277,7 @@ func writeUserAssistCSV(path string, entries []userAssistEntry, sid string) erro
 			lastRun = e.LastRun.Format(time.RFC3339)
 		}
 		if err := w.Write([]string{
-			sid, e.Category, e.GUID, e.DecodedPath, e.OriginalName,
+			sid, e.Category, e.GUID, csvSafe(e.DecodedPath), csvSafe(e.OriginalName),
 			fmt.Sprintf("%d", e.SessionID),
 			fmt.Sprintf("%d", e.RunCount),
 			fmt.Sprintf("%d", e.FocusCount),
