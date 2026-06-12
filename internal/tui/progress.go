@@ -33,8 +33,9 @@ type progressModel struct {
 	spinnerTick int
 }
 
-// spinnerFrames are simple braille-like characters that rotate to show activity.
-var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+// spinnerFrames are simple ASCII characters that rotate to show activity.
+// ASCII-only so they render on plain Windows PowerShell (no Unicode braille).
+var spinnerFrames = []string{"|", "/", "-", "\\"}
 
 // progressTickMsg is sent periodically to update the elapsed time and spinner.
 type progressTickMsg time.Time
@@ -108,7 +109,7 @@ func (p progressModel) View() string {
 
 		switch m.status {
 		case "":
-			marker = "⏸"
+			marker = "[ ]"
 			nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#64748B"))
 			detail = "pending"
 		case "running":
@@ -119,19 +120,19 @@ func (p progressModel) View() string {
 			if m.result != nil {
 				switch m.result.Status {
 				case module.StatusSuccess:
-					marker = "✓"
+					marker = "[+]"
 					nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#86EFAC"))
 				case module.StatusPartial:
-					marker = "⚠"
+					marker = "[!]"
 					nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D"))
 				case module.StatusFailed:
-					marker = "✗"
+					marker = "[x]"
 					nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171"))
 				case module.StatusTimedOut:
-					marker = "⏱"
+					marker = "[t]"
 					nameStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171"))
 				default:
-					marker = "?"
+					marker = "[?]"
 					nameStyle = lipgloss.NewStyle()
 				}
 				detail = fmt.Sprintf("(%s)  %d artifacts", m.result.Duration.Round(time.Millisecond), len(m.result.Artifacts))
@@ -147,7 +148,7 @@ func (p progressModel) View() string {
 	}
 
 	b.WriteString("\n")
-	footer := fmt.Sprintf("Elapsed: %s   •   Time limit: %s",
+	footer := fmt.Sprintf("Elapsed: %s   |   Time limit: %s",
 		p.elapsed.Round(time.Second), p.totalBudget)
 	b.WriteString(hintStyle.Render(footer))
 	b.WriteString("\n")

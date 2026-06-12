@@ -52,7 +52,7 @@ func (m model) confirmView() string {
 	b.WriteString(successStyle.Render("Start collection now?"))
 	b.WriteString("\n")
 
-	hint := hintStyle.Render("\n[y] yes, start   •   [n / Esc] go back to edit   •   [Ctrl+C] quit")
+	hint := hintStyle.Render("\n[y] yes, start   |   [n / Esc] go back to edit   |   [Ctrl+C] quit")
 	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())

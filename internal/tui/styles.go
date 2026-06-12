@@ -104,21 +104,21 @@ const sahmBanner = `███████  █████  ██   ██ █�
 
 // cardStyle is the bordered container for the metadata header card.
 var cardStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
+	Border(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("#7DD3FC")).
 	Padding(1, 2).
 	MarginBottom(1)
 
 // attentionCardStyle highlights the critical/warning findings section.
 var attentionCardStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
+	Border(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("#FCD34D")).
 	Padding(1, 2).
 	MarginBottom(1)
 
 // criticalCardStyle for critical findings — red border.
 var criticalCardStyle = lipgloss.NewStyle().
-	Border(lipgloss.RoundedBorder()).
+	Border(lipgloss.NormalBorder()).
 	BorderForeground(lipgloss.Color("#F87171")).
 	Padding(1, 2).
 	MarginBottom(1)
@@ -149,13 +149,13 @@ var (
 func findingSeverityStyle(severity string) (icon string, style lipgloss.Style) {
 	switch severity {
 	case "critical":
-		return "✗", lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true)
+		return "[!]", lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true)
 	case "warning":
-		return "⚠", lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D"))
+		return "[*]", lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D"))
 	case "info":
-		return "ℹ", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
+		return "[i]", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
 	default:
-		return "•", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
+		return "[-]", lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8"))
 	}
 }
 
@@ -178,5 +178,5 @@ func statusBadgeStyle(status string) string {
 		Background(bg).
 		Bold(true).
 		Padding(0, 1).
-		Render("● " + upper)
+		Render("* " + upper)
 }

@@ -55,7 +55,7 @@ func (m model) reportPickerView() string {
 	b.WriteString(m.reportPicker.View())
 
 	b.WriteString("\n")
-	hint := hintStyle.Render("↑ / ↓ navigate   •   Enter to open or select   •   Esc back")
+	hint := hintStyle.Render("Up / Down navigate   |   Enter to open or select   |   Esc back")
 	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())
@@ -86,9 +86,9 @@ func (m model) reportViewerView() string {
 		var b strings.Builder
 		b.WriteString(titleStyle.Render("Case Report"))
 		b.WriteString("\n\n")
-		b.WriteString(errorStyle.Render("✗ " + m.reportErr.Error()))
+		b.WriteString(errorStyle.Render("[x] " + m.reportErr.Error()))
 		b.WriteString("\n\n")
-		b.WriteString(hintStyle.Render("Esc to go back   •   q to quit"))
+		b.WriteString(hintStyle.Render("Esc to go back   |   q to quit"))
 		return containerStyle.Render(b.String())
 	}
 
@@ -106,7 +106,7 @@ func (m model) reportViewerView() string {
 
 	scrollPct := int(m.reportViewport.ScrollPercent() * 100)
 	scrollInfo := fmt.Sprintf("Scroll: %d%%", scrollPct)
-	footer := hintStyle.Render(scrollInfo + "   •   ↑ / ↓ scroll   •   PgUp / PgDn scroll page   •   Esc back   •   q quit")
+	footer := hintStyle.Render(scrollInfo + "   |   Up / Down scroll   |   PgUp / PgDn scroll page   |   Esc back   |   q quit")
 	b.WriteString(footer)
 
 	return b.String()
@@ -117,7 +117,17 @@ func (m model) reportViewerView() string {
 func initReportViewport(width, height int, rd *reportData) viewport.Model {
 	vp := viewport.New(width, height)
 	vp.Style = vp.Style.Padding(1, 2)
-	content := renderReport(rd, width)
+	// The viewport renders content into (Width - horizontal frame size) and
+	// TRUNCATES anything wider — see bubbles viewport View(), which does
+	// contentWidth = Width - Style.GetHorizontalFrameSize() then
+	// MaxWidth(contentWidth). Size the report to that true inner width so the
+	// header card's right border isn't truncated off. Deriving it from
+	// GetHorizontalFrameSize keeps this correct if the padding ever changes.
+	inner := vp.Width - vp.Style.GetHorizontalFrameSize()
+	if inner < 40 {
+		inner = 40
+	}
+	content := renderReport(rd, inner)
 	vp.SetContent(content)
 	return vp
 }

@@ -46,7 +46,7 @@ func (m model) analyzePickerView() string {
 	b.WriteString(m.analyzePicker.View())
 
 	b.WriteString("\n")
-	hint := hintStyle.Render("↑ / ↓ navigate   •   Enter to open or select   •   Esc back")
+	hint := hintStyle.Render("Up / Down navigate   |   Enter to open or select   |   Esc back")
 	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())
@@ -103,18 +103,18 @@ func (m model) analyzeCompleteView() string {
 	b.WriteString("\n\n")
 
 	if m.analyzeErr != nil {
-		b.WriteString(errorStyle.Render("✗ Analyzer failed"))
+		b.WriteString(errorStyle.Render("[x] Analyzer failed"))
 		b.WriteString("\n")
 		b.WriteString(m.analyzeErr.Error())
 		b.WriteString("\n\n")
-		b.WriteString(hintStyle.Render("Enter / Esc to go back   •   q to quit"))
+		b.WriteString(hintStyle.Render("Enter / Esc to go back   |   q to quit"))
 		return containerStyle.Render(b.String())
 	}
 
 	r := m.analyzeResult
 	if r == nil {
 		b.WriteString("Analyzer returned no result.\n\n")
-		b.WriteString(hintStyle.Render("Enter / Esc to go back   •   q to quit"))
+		b.WriteString(hintStyle.Render("Enter / Esc to go back   |   q to quit"))
 		return containerStyle.Render(b.String())
 	}
 
@@ -125,6 +125,24 @@ func (m model) analyzeCompleteView() string {
 
 	b.WriteString(labelStyle.Render("Parsers"))
 	b.WriteString("\n")
+
+	// Wrap long parser sub-lines (paths, findings, stats) to the available
+	// width so they don't overflow and clip on the right edge. containerStyle
+	// has Padding(2,6) = 12 cols of horizontal frame; reserve 2 more as a
+	// gutter. PaddingLeft(4) gives wrapped continuation lines a hanging indent
+	// aligned under the prefix.
+	avail := m.termWidth - 14
+	if avail < 40 {
+		avail = 40
+	}
+	subLine := func(color, prefix, text string) string {
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color(color)).
+			Width(avail).
+			PaddingLeft(4).
+			Render(prefix + text)
+	}
+
 	for _, p := range r.ParsersRun {
 		statusColor := lipgloss.Color("#86EFAC") // green
 		switch p.Status {
@@ -142,25 +160,25 @@ func (m model) analyzeCompleteView() string {
 		b.WriteString(fmt.Sprintf("%s %s %s\n", marker, p.Name, duration))
 
 		for _, out := range p.Outputs {
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8")).Render(
-				fmt.Sprintf("    → %s\n", out)))
+			b.WriteString(subLine("#94A3B8", "-> ", out))
+			b.WriteString("\n")
 		}
 		if len(p.Stats) > 0 {
 			var parts []string
 			for k, v := range p.Stats {
 				parts = append(parts, fmt.Sprintf("%s=%d", k, v))
 			}
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#64748B")).Render(
-				fmt.Sprintf("    stats: %s\n", strings.Join(parts, ", "))))
+			b.WriteString(subLine("#64748B", "stats: ", strings.Join(parts, ", ")))
+			b.WriteString("\n")
 		}
 		for _, e := range p.Errors {
-			b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D")).Render(
-				fmt.Sprintf("    ⚠ %s\n", e)))
+			b.WriteString(subLine("#FCD34D", "[!] ", e))
+			b.WriteString("\n")
 		}
 	}
 
 	b.WriteString("\n")
-	b.WriteString(hintStyle.Render("Enter / Esc to go back to the menu   •   q to quit"))
+	b.WriteString(hintStyle.Render("Enter / Esc to go back to the menu   |   q to quit"))
 
 	return containerStyle.Render(b.String())
 }

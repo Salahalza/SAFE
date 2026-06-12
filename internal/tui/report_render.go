@@ -356,15 +356,15 @@ func renderModulesTable(rd *reportData) string {
 func moduleStatusIcon(status string) (string, lipgloss.Style) {
 	switch status {
 	case "success":
-		return "✓", moduleSuccessStyle
+		return "[+]", moduleSuccessStyle
 	case "partial":
-		return "⚠", moduleWarnStyle
+		return "[!]", moduleWarnStyle
 	case "failed", "timed_out":
-		return "✗", moduleFailStyle
+		return "[x]", moduleFailStyle
 	case "skipped":
-		return "○", moduleSkipStyle
+		return "[-]", moduleSkipStyle
 	default:
-		return "?", moduleSkipStyle
+		return "[?]", moduleSkipStyle
 	}
 }
 
@@ -382,7 +382,7 @@ func renderObservations(rd *reportData) string {
 			icon, style := findingSeverityStyle(f.Severity)
 			msg := f.Message
 			if f.Source != "" && f.Source != m.Name {
-				msg = fmt.Sprintf("%s — %s", f.Source, msg)
+				msg = fmt.Sprintf("%s - %s", f.Source, msg)
 			}
 			lines = append(lines, "    "+style.Render(icon)+"  "+msg)
 		}
@@ -397,7 +397,7 @@ func renderObservations(rd *reportData) string {
 	}
 
 	if len(sections) == 0 {
-		return title + "\n  " + metadataLabelStyle.Render("(none — modules completed cleanly)")
+		return title + "\n  " + metadataLabelStyle.Render("(none - modules completed cleanly)")
 	}
 
 	return title + "\n" + strings.Join(sections, "\n\n")
@@ -405,13 +405,13 @@ func renderObservations(rd *reportData) string {
 
 // renderCriticalSection shows critical findings in a prominent red-bordered card.
 func renderCriticalSection(findings []reportFinding, width int) string {
-	title := lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true).Render("⚠  CRITICAL FINDINGS")
+	title := lipgloss.NewStyle().Foreground(lipgloss.Color("#F87171")).Bold(true).Render("[!] CRITICAL FINDINGS")
 	var lines []string
 	for _, f := range findings {
 		icon, style := findingSeverityStyle(f.Severity)
 		msg := f.Message
 		if f.Source != "" {
-			msg = fmt.Sprintf("%s — %s", f.Source, msg)
+			msg = fmt.Sprintf("%s - %s", f.Source, msg)
 		}
 		lines = append(lines, style.Render(icon)+"  "+msg)
 	}
@@ -426,13 +426,13 @@ func renderCriticalSection(findings []reportFinding, width int) string {
 
 // renderWarningSection shows warning findings in an amber-bordered card.
 func renderWarningSection(findings []reportFinding, width int) string {
-	title := lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D")).Bold(true).Render("⚠  WARNINGS")
+	title := lipgloss.NewStyle().Foreground(lipgloss.Color("#FCD34D")).Bold(true).Render("[!] WARNINGS")
 	var lines []string
 	for _, f := range findings {
 		icon, style := findingSeverityStyle(f.Severity)
 		msg := f.Message
 		if f.Source != "" {
-			msg = fmt.Sprintf("%s — %s", f.Source, msg)
+			msg = fmt.Sprintf("%s - %s", f.Source, msg)
 		}
 		lines = append(lines, style.Render(icon)+"  "+msg)
 	}

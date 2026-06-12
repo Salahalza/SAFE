@@ -249,11 +249,11 @@ func (f formModel) View() string {
 	b.WriteString(f.renderSubmit())
 
 	if f.errMessage != "" {
-		b.WriteString(errorStyle.Render("✗ " + f.errMessage))
+		b.WriteString(errorStyle.Render("[x] " + f.errMessage))
 		b.WriteString("\n")
 	}
 
-	hint := hintStyle.Render("\nTab / ↓ next field   •   Shift+Tab / ↑ previous field   •   ← / → change selection   •   Esc go back   •   Ctrl+C quit")
+	hint := hintStyle.Render("\nTab / Down next field   |   Shift+Tab / Up previous field   |   Left / Right change selection   |   Esc go back   |   Ctrl+C quit")
 	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())
@@ -278,7 +278,7 @@ func (f formModel) renderTargetClass() string {
 	for _, o := range targetClassOptions {
 		marker := "( )"
 		if o.value == f.targetClass {
-			marker = "(•)"
+			marker = "(*)"
 		}
 		text := marker + " " + o.label
 		if f.focused == fieldTargetClass && o.value == f.targetClass {
@@ -301,7 +301,7 @@ func (f formModel) renderProfile() string {
 	for _, o := range AvailableProfiles {
 		marker := "( )"
 		if o.Value == f.profile {
-			marker = "(•)"
+			marker = "(*)"
 		}
 		text := marker + " " + o.Label
 		if f.focused == fieldProfile && o.Value == f.profile {

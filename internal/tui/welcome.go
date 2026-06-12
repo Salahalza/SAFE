@@ -90,7 +90,7 @@ func welcomeView(cursor welcomeChoice) string {
 		descStyleToUse := lipgloss.NewStyle().Foreground(lipgloss.Color("#64748B"))
 
 		if selected {
-			marker = lipgloss.NewStyle().Foreground(lipgloss.Color("#7DD3FC")).Bold(true).Render("  ▶ ")
+			marker = lipgloss.NewStyle().Foreground(lipgloss.Color("#7DD3FC")).Bold(true).Render("  > ")
 			labelStyleToUse = lipgloss.NewStyle().Foreground(lipgloss.Color("#7DD3FC")).Bold(true)
 		}
 
@@ -102,8 +102,8 @@ func welcomeView(cursor welcomeChoice) string {
 		b.WriteString("\n\n")
 	}
 
-	hint := hintStyle.Render("↑ / ↓ or j / k to move   •   1 / 2 / 3 to jump   •   Enter to select   •   q to quit")
-	footer := hintStyle.Render("\nv0.1.0  •  Internal IR use only")
+	hint := hintStyle.Render("Up / Down or j / k to move   |   1 / 2 / 3 to jump   |   Enter to select   |   q to quit")
+	footer := hintStyle.Render("\nv0.1.0  |  Internal IR use only")
 
 	return containerStyle.Render(
 		banner + "\n" + tagline + "\n" + subtitle + "\n\n" + b.String() + "\n" + hint + footer,
