@@ -1,7 +1,7 @@
 package profile
 
 import (
-	"sahm/internal/module"
+	"safe/internal/module"
 	"time"
 )
 
@@ -9,7 +9,7 @@ func RapidTriage() *Profile {
 	return &Profile{
 		Name:        "rapid_triage",
 		Version:     "0.2.0",
-		Description: "Fast first-touch assessment of a Windows endpoint or server. Collection only — parsing happens in lab via sahm --analyze.",
+		Description: "Fast first-touch assessment of a Windows endpoint or server. Collection only — parsing happens in lab via safe --analyze.",
 		TotalBudget: 15 * time.Minute,
 		Modules: []module.Module{
 			// Volatile data first (order of volatility principle).

@@ -1,11 +1,11 @@
-# SAFE/SAHM Development Plan
+# SAFE Development Plan
 
 Last updated: 2026-06-10
 Status: Phase 1 complete. Phases 2-12 defined.
 
-This document describes the long-range development plan for SAFE (currently
-named SAHM in code; rename planned). Each phase is a meaningful chunk of
-work, typically spanning multiple development sessions.
+This document describes the long-range development plan for SAFE. Each phase
+is a meaningful chunk of work, typically spanning multiple development
+sessions.
 
 For session-level planning, see `docs/ROADMAP.md`.
 For open design questions, see `docs/DESIGN_QUESTIONS.md`.

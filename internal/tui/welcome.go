@@ -64,8 +64,8 @@ func (m model) activateWelcomeChoice() (tea.Model, tea.Cmd) {
 }
 
 func welcomeView(cursor welcomeChoice) string {
-	banner := brandStyle.Render(sahmBanner)
-	tagline := subtitleStyle.Render("System for Artifact Harvesting and Management")
+	banner := brandStyle.Render(safeBanner)
+	tagline := subtitleStyle.Render("System for Artifacts Forensic and Examination")
 	subtitle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#94A3B8")).
 		MarginBottom(2).

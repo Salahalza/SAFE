@@ -1,10 +1,10 @@
-# SAHM Profiles
+# SAFE Profiles
 
-This document defines SAHM's collection profiles, what each is for, and when
+This document defines SAFE's collection profiles, what each is for, and when
 to use which. It is the canonical reference for profile design decisions.
 
 If you're an analyst deciding which profile to run, start here.
-If you're extending SAHM with new modules, this document tells you which
+If you're extending SAFE with new modules, this document tells you which
 profile your module belongs in.
 
 ---
@@ -14,7 +14,7 @@ profile your module belongs in.
 ### Principle 1: Profiles organized around case type, not tool activity
 
 Traditional IR thinking uses three modes — Memory, Triage, Full Image —
-named after the tools they invoke. SAHM uses profiles named after the
+named after the tools they invoke. SAFE uses profiles named after the
 investigative questions they answer.
 
 This means:
@@ -43,7 +43,7 @@ fast.
 
 ### Principle 3: Collection on target, parsing in lab
 
-SAHM is designed to be a quiet visitor on a targeted device. Every command
+SAFE is designed to be a quiet visitor on a targeted device. Every command
 executed and every CPU cycle spent on the target risks:
 
 - Alerting EDR or attacker-deployed monitoring
@@ -57,7 +57,7 @@ Therefore: the collection profile copies files and runs read-only commands.
 It does not parse binary artifact formats, run regex extractions, or perform
 any processing that can be deferred to lab analysis.
 
-Parsing happens in lab analysis mode (`sahm --analyze <case-folder>`),
+Parsing happens in lab analysis mode (`safe --analyze <case-folder>`),
 running on the analyst's workstation. The case folder is the input;
 `<case-folder>/lab_report/` is the output. See PLAN.md "Lab Analysis Mode"
 for the parser architecture.
@@ -95,7 +95,7 @@ event channels, deep persistence. If you need any of those, use endpoint_deep
 or one of the server profiles instead.
 
 **Parsing:** rapid_triage performs no parsing on the target. The collected
-case folder is taken back to the lab where `sahm --analyze <case-folder>`
+case folder is taken back to the lab where `safe --analyze <case-folder>`
 produces parsed CSVs in a `lab_report/` subdirectory. See "Design Principle
 3" below.
 ---
@@ -220,8 +220,8 @@ These are NOT separate profiles and will not be:
 LIMITATIONS.md. Use WinPmem or Magnet RAM Capture separately if needed.
 
 **Full disk imaging:** Out of scope. Use FTK Imager, Magnet AXIOM, or `dd`.
-SAHM gets evidence those tools can't easily get (live state); they get
-evidence SAHM doesn't try to get (full disk).
+SAFE gets evidence those tools can't easily get (live state); they get
+evidence SAFE doesn't try to get (full disk).
 
 **Network packet capture:** Out of scope. Use Wireshark, tcpdump, or
 network appliances.
@@ -249,7 +249,7 @@ When an analyst is deciding which profile to run, the questions are:
    - Suspected memory-resident malware → endpoint_deep (memory inspection
      included) plus possibly an external memory dump
    - Legal chain-of-custody required → use FTK Imager for full disk;
-     SAHM provides the live evidence FTK can't
+     SAFE provides the live evidence FTK can't
    - Multi-target deployment scenario → run rapid_triage on all targets
      first, then decide which need deeper collection
 

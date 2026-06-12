@@ -1,4 +1,4 @@
-module sahm
+module safe
 
 go 1.26.2
 

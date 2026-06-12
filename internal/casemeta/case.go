@@ -52,8 +52,8 @@ type Case struct {
 	// CreatedAt is when the case was initialized (UTC).
 	CreatedAt time.Time `json:"created_at"`
 
-	// SAHMVersion is the version of the tool that ran this collection.
-	SAHMVersion string `json:"sahm_version"`
+	// SAFEVersion is the version of the tool that ran this collection.
+	SAFEVersion string `json:"safe_version"`
 }
 
 // irNumberPattern matches IR-####-####, where # is a single digit.

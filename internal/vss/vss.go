@@ -42,7 +42,7 @@ type Shadow struct {
 	ShadowPath string
 
 	// MountedPath is the symlink path readable as a normal directory,
-	// e.g., C:\sahm_shadow_<timestamp>
+	// e.g., C:\safe_shadow_<timestamp>
 	MountedPath string
 
 	// Volume is the volume the shadow was taken of, e.g., "C:".
@@ -119,7 +119,7 @@ Write-Output "DEVICE_OBJECT=$($shadow.DeviceObject)"
 
 	// Mount via symlink. The trailing backslash on the shadow path makes
 	// mklink treat it as a directory link.
-	mountPath := filepath.Join(`C:\`, fmt.Sprintf("sahm_shadow_%s",
+	mountPath := filepath.Join(`C:\`, fmt.Sprintf("safe_shadow_%s",
 		createdAt.Format("20060102_150405")))
 
 	mklinkCmd := exec.CommandContext(ctx, "cmd", "/c", "mklink", "/d",
@@ -221,10 +221,10 @@ func parseShadowOutput(output string) (id, path string, err error) {
 	return id, path, nil
 }
 
-// CleanupOrphans removes any SAHM-created shadows and symlinks left over
+// CleanupOrphans removes any SAFE-created shadows and symlinks left over
 // from previous interrupted runs.
 //
-// SAHM shadows are identified by matching symlinks at C:\sahm_shadow_*.
+// SAFE shadows are identified by matching symlinks at C:\safe_shadow_*.
 // For each such symlink found:
 //   - Determine the shadow ID it points to (via symlink target)
 //   - Delete the shadow
@@ -238,9 +238,9 @@ func CleanupOrphans() (int, []error) {
 	cleaned := 0
 
 	// Find all matching symlinks in C:\
-	matches, err := filepath.Glob(`C:\sahm_shadow_*`)
+	matches, err := filepath.Glob(`C:\safe_shadow_*`)
 	if err != nil {
-		return 0, []error{fmt.Errorf("glob sahm_shadow_* in C:\\: %w", err)}
+		return 0, []error{fmt.Errorf("glob safe_shadow_* in C:\\: %w", err)}
 	}
 
 	for _, symlinkPath := range matches {
@@ -321,13 +321,13 @@ if ($shadow) {
 	return id, nil
 }
 
-// ListSAHMShadows returns information about SAHM-created shadows currently
-// on the system (those with matching C:\sahm_shadow_* symlinks). Useful
+// ListSAFEShadows returns information about SAFE-created shadows currently
+// on the system (those with matching C:\safe_shadow_* symlinks). Useful
 // for the --cleanup-shadows command to report what will be cleaned.
-func ListSAHMShadows() ([]OrphanInfo, error) {
-	matches, err := filepath.Glob(`C:\sahm_shadow_*`)
+func ListSAFEShadows() ([]OrphanInfo, error) {
+	matches, err := filepath.Glob(`C:\safe_shadow_*`)
 	if err != nil {
-		return nil, fmt.Errorf("glob sahm_shadow_*: %w", err)
+		return nil, fmt.Errorf("glob safe_shadow_*: %w", err)
 	}
 
 	var infos []OrphanInfo
@@ -353,9 +353,9 @@ func ListSAHMShadows() ([]OrphanInfo, error) {
 	return infos, nil
 }
 
-// OrphanInfo describes a SAHM-created shadow found on the system.
+// OrphanInfo describes a SAFE-created shadow found on the system.
 type OrphanInfo struct {
-	SymlinkPath string    // C:\sahm_shadow_<timestamp>
+	SymlinkPath string    // C:\safe_shadow_<timestamp>
 	ShadowPath  string    // \\?\GLOBALROOT\Device\HarddiskVolumeShadowCopyN
 	ShadowID    string    // {guid}
 	CreatedAt   time.Time // approximate creation time from symlink mtime

@@ -2,7 +2,7 @@ package module
 
 import (
 	"context"
-	"sahm/internal/vss"
+	"safe/internal/vss"
 	"time"
 )
 

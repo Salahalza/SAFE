@@ -10,18 +10,18 @@ import (
 	"strings"
 	"time"
 
-	"sahm/internal/analyzer"
-	"sahm/internal/casemeta"
-	"sahm/internal/engine"
-	"sahm/internal/manifest"
-	"sahm/internal/pathfinder"
-	"sahm/internal/preflight"
-	"sahm/internal/profile"
-	"sahm/internal/tui"
-	"sahm/internal/vss"
+	"safe/internal/analyzer"
+	"safe/internal/casemeta"
+	"safe/internal/engine"
+	"safe/internal/manifest"
+	"safe/internal/pathfinder"
+	"safe/internal/preflight"
+	"safe/internal/profile"
+	"safe/internal/tui"
+	"safe/internal/vss"
 )
 
-const sahmVersion = "0.1.0"
+const safeVersion = "0.1.0"
 
 func main() {
 	var (
@@ -37,7 +37,7 @@ func main() {
 		verifyDir      = flag.String("verify", "", "Verify integrity of a case folder. Specify the case folder path.")
 		tuiMode        = flag.Bool("tui", false, "Launch the interactive terminal UI.")
 		dryRun         = flag.Bool("dry-run", false, "Validate environment without performing collection.")
-		cleanupShadows = flag.Bool("cleanup-shadows", false, "Clean up SAHM-created shadow copies left from previous interrupted runs, then exit.")
+		cleanupShadows = flag.Bool("cleanup-shadows", false, "Clean up SAFE-created shadow copies left from previous interrupted runs, then exit.")
 		analyzeDir     = flag.String("analyze", "", "Run analyzer parsers against a collected case folder. Specify the case folder path.")
 		irNumber       = flag.String("ir", "", "Optional IR ticket number (format: IR-####-####).")
 		csiNumber      = flag.String("csi", "", "Optional CSI ticket number (format: CSI-######).")
@@ -50,7 +50,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Auto-cleanup at startup: silently clean any orphan SAHM shadows.
+	// Auto-cleanup at startup: silently clean any orphan SAFE shadows.
 	// This protects against accumulating leaks from interrupted runs.
 	runAutoShadowCleanup()
 
@@ -102,7 +102,7 @@ func main() {
 		populateTUIProfiles(registry)
 
 		runFn := func(c *casemeta.Case, p *profile.Profile, progressCh chan<- engine.ProgressEvent) engine.CaseResult {
-			c.SAHMVersion = sahmVersion
+			c.SAFEVersion = safeVersion
 			caseDir := filepath.Join(*outputDir, c.CaseDirName())
 			_ = c.WriteToCase(caseDir)
 			eng := engine.New(caseDir)
@@ -113,7 +113,7 @@ func main() {
 			if data, err := json.MarshalIndent(result, "", "  "); err == nil {
 				_ = os.WriteFile(resultPath, data, 0o644)
 			}
-			summary := buildCaseSummary(c, result, sahmVersion)
+			summary := buildCaseSummary(c, result, safeVersion)
 			_ = manifest.WriteCaseReport(caseDir, summary)
 			_ = manifest.WriteCaseManifest(caseDir, c.CaseID)
 			return result
@@ -152,7 +152,7 @@ func main() {
 		Notes:            *notes,
 		ProfileName:      *profileName,
 		CreatedAt:        time.Now().UTC(),
-		SAHMVersion:      sahmVersion,
+		SAFEVersion:      safeVersion,
 	}
 
 	p, _ := registry.Get(c.ProfileName)
@@ -203,7 +203,7 @@ func main() {
 
 	caseDir := filepath.Join(*outputDir, c.CaseDirName())
 
-	fmt.Printf("SAHM v%s — System for Artifact Harvesting and Management\n", sahmVersion)
+	fmt.Printf("SAFE v%s — System for Artifacts Forensic and Examination\n", safeVersion)
 	fmt.Println()
 	fmt.Printf("Case ID:    %s\n", c.CaseID)
 	if c.IRNumber != "" {
@@ -238,7 +238,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write result.json: %v\n", err)
 	}
 
-	summary := buildCaseSummary(c, result, sahmVersion)
+	summary := buildCaseSummary(c, result, safeVersion)
 	if err := manifest.WriteCaseReport(caseDir, summary); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: failed to write case report: %v\n", err)
 	} else {
@@ -310,7 +310,7 @@ func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string
 		TargetClass: c.TargetClass,
 		Notes:       c.Notes,
 		Profile:     c.ProfileName,
-		SAHMVersion: version,
+		SAFEVersion: version,
 		StartedAt:   result.StartedAt,
 		EndedAt:     result.EndedAt,
 		Duration:    result.Duration,
@@ -321,7 +321,7 @@ func buildCaseSummary(c *casemeta.Case, result engine.CaseResult, version string
 
 func runDryRun(c *casemeta.Case, p *profile.Profile, outputDir string, skipPreflight bool) bool {
 	fmt.Println(strings.Repeat("=", 70))
-	fmt.Println("SAHM DRY-RUN")
+	fmt.Println("SAFE DRY-RUN")
 	fmt.Println(strings.Repeat("=", 70))
 	fmt.Println()
 	fmt.Println("Validating environment and configuration. No artifacts will be written.")
@@ -480,7 +480,7 @@ func checkWritable(dir string) error {
 		testDir = parent
 	}
 
-	testPath := filepath.Join(testDir, ".sahm-write-test")
+	testPath := filepath.Join(testDir, ".safe-write-test")
 	if err := os.WriteFile(testPath, []byte("test"), 0o644); err != nil {
 		return fmt.Errorf("cannot write in %s: %w", testDir, err)
 	}
@@ -495,25 +495,25 @@ func fatalf(format string, args ...any) {
 	os.Exit(2)
 }
 
-// runShadowCleanup performs an explicit cleanup of SAHM-created shadows
+// runShadowCleanup performs an explicit cleanup of SAFE-created shadows
 // invoked via --cleanup-shadows flag. Reports what was found and what was
 // cleaned, returns explicit exit status.
 func runShadowCleanup() {
-	fmt.Println("Scanning for SAHM-created shadow copies...")
+	fmt.Println("Scanning for SAFE-created shadow copies...")
 	fmt.Println()
 
-	infos, err := vss.ListSAHMShadows()
+	infos, err := vss.ListSAFEShadows()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to list shadows: %v\n", err)
 		os.Exit(2)
 	}
 
 	if len(infos) == 0 {
-		fmt.Println("No SAHM-created shadow copies found. System is clean.")
+		fmt.Println("No SAFE-created shadow copies found. System is clean.")
 		return
 	}
 
-	fmt.Printf("Found %d SAHM-created shadow(s):\n", len(infos))
+	fmt.Printf("Found %d SAFE-created shadow(s):\n", len(infos))
 	for _, info := range infos {
 		fmt.Printf("  - %s\n", info.SymlinkPath)
 		fmt.Printf("    Shadow ID: %s\n", info.ShadowID)
@@ -534,7 +534,7 @@ func runShadowCleanup() {
 	fmt.Println("Cleanup complete.")
 }
 
-// runAutoShadowCleanup performs silent orphan cleanup at SAHM startup.
+// runAutoShadowCleanup performs silent orphan cleanup at SAFE startup.
 // Only reports problems; success is silent so the analyst's output isn't
 // cluttered with "0 shadows cleaned" messages on every run.
 func runAutoShadowCleanup() {
@@ -553,7 +553,7 @@ func runAutoShadowCleanup() {
 }
 
 func runAnalyzer(caseDir string) {
-	fmt.Printf("SAHM Analyzer — parsing case folder\n")
+	fmt.Printf("SAFE Analyzer — parsing case folder\n")
 	fmt.Printf("Case: %s\n\n", caseDir)
 
 	registry := analyzer.NewRegistry()

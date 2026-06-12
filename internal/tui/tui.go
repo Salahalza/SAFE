@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"sahm/internal/analyzer"
-	"sahm/internal/casemeta"
-	"sahm/internal/engine"
-	"sahm/internal/profile"
+	"safe/internal/analyzer"
+	"safe/internal/casemeta"
+	"safe/internal/engine"
+	"safe/internal/profile"
 
 	"github.com/charmbracelet/bubbles/filepicker"
 	"github.com/charmbracelet/bubbles/viewport"

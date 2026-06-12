@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// ToolsCheck verifies that the external tools SAHM modules depend on
+// ToolsCheck verifies that the external tools SAFE modules depend on
 // are reachable on the target system's PATH.
 type ToolsCheck struct {
 	// Tools is the list of tool names to check.
@@ -57,7 +57,7 @@ func (c *ToolsCheck) Run() *Finding {
 			Check:    c.Name(),
 			Severity: SeverityCritical,
 			Message:  "None of the required external tools were found on PATH.",
-			Detail:   "This usually means SAHM is running on a non-Windows host, or the tools have been removed from the system.",
+			Detail:   "This usually means SAFE is running on a non-Windows host, or the tools have been removed from the system.",
 		}
 	}
 

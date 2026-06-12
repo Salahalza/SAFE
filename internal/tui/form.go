@@ -3,7 +3,7 @@ package tui
 import (
 	"strings"
 
-	"sahm/internal/casemeta"
+	"safe/internal/casemeta"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

@@ -12,7 +12,7 @@ func (c *AdminCheck) Run() *Finding {
 	return &Finding{
 		Check:    c.Name(),
 		Severity: SeverityCritical,
-		Message:  "SAHM is not running as administrator.",
+		Message:  "SAFE is not running as administrator.",
 		Detail:   "Several modules (registry_core, parts of eventlogs_core, parts of network_snapshot) require administrator privileges. Without elevation, collection will be significantly degraded.",
 	}
 }

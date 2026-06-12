@@ -1,10 +1,10 @@
-# SAHM Known Limitations
+# SAFE Known Limitations
 
-This document tracks capabilities SAHM does not currently provide, and the
+This document tracks capabilities SAFE does not currently provide, and the
 rationale for each gap. It is updated as scope decisions are made.
 
-The purpose is honesty: SAHM is a focused tool, not a complete forensic suite.
-Knowing what SAHM does NOT do is as important as knowing what it does.
+The purpose is honesty: SAFE is a focused tool, not a complete forensic suite.
+Knowing what SAFE does NOT do is as important as knowing what it does.
 
 ---
 
@@ -18,14 +18,14 @@ multi-year effort with significant compatibility, signing, and stability risk.
 Bundling third-party tools (WinPmem, Magnet RAM Capture, etc.) was considered
 and deferred pending review of organizational policy on third-party software.
 
-**What SAHM provides instead:** SAHM v1.0 includes per-process memory
+**What SAFE provides instead:** SAFE v1.0 includes per-process memory
 inspection (see `process_memory_inspection` module), which covers the majority
 of IR scenarios involving memory analysis without requiring kernel access.
 
 **For cases requiring full memory acquisition:** Run WinPmem, Magnet RAM
-Capture, or FTK Imager separately, in parallel with SAHM. SAHM's case folder
+Capture, or FTK Imager separately, in parallel with SAFE. SAFE's case folder
 can hold the resulting dump alongside its own artifacts — copy the dump into
-the case folder and re-run `sahm --verify` to include it in the manifest.
+the case folder and re-run `safe --verify` to include it in the manifest.
 
 **What we lose by not having it:**
 - Detection of kernel-mode rootkits
@@ -55,9 +55,9 @@ acquired with the tools mentioned above.
 
 **Status:** Removed from roadmap. Out of scope.
 
-**Rationale:** SAHM is built as a self-contained tool with no third-party
+**Rationale:** SAFE is built as a self-contained tool with no third-party
 binary dependencies. KAPE and DFIR-ORC functionality is partially replicated
-by SAHM's native modules in endpoint_deep, domain_controller, and server_role
+by SAFE's native modules in endpoint_deep, domain_controller, and server_role
 profiles. For full $MFT and USN journal extraction, see DESIGN_QUESTIONS.md
 for the planned native Go implementation.
 
@@ -67,7 +67,7 @@ for the planned native Go implementation.
 
 **Status:** Not implemented. Not planned.
 
-**Rationale:** SAHM is offline-first, designed for physical presence at the
+**Rationale:** SAFE is offline-first, designed for physical presence at the
 target. Network-based collection (remote PowerShell, WinRM, agent-based) is a
 different operational model better served by other tools.
 
@@ -78,7 +78,7 @@ different operational model better served by other tools.
 **Status:** Partially addressed by `process_memory_inspection` module.
 
 **Rationale:** Threats that exist entirely in memory and never write to disk
-require memory-based detection. SAHM's per-process inspection catches most
+require memory-based detection. SAFE's per-process inspection catches most
 such threats running in user-mode. Kernel-only memory-resident threats remain
 out of scope per the kernel-mode limitation above.
 
@@ -89,7 +89,7 @@ out of scope per the kernel-mode limitation above.
 **Status:** Not implemented. Not planned for v1.
 
 **Rationale:** Cloud workload forensics (AWS, Azure, GCP) is a fundamentally
-different domain from endpoint forensics. SAHM targets physical Windows
+different domain from endpoint forensics. SAFE targets physical Windows
 endpoints and servers.
 
 ---
@@ -98,7 +98,7 @@ endpoints and servers.
 
 **Status:** Not implemented. Not planned.
 
-**Rationale:** Out of scope. SAHM is Windows-only.
+**Rationale:** Out of scope. SAFE is Windows-only.
 
 ---
 
@@ -106,7 +106,7 @@ endpoints and servers.
 
 **Status:** Not implemented. Not planned for v1.
 
-**Rationale:** SAHM is Windows-focused. Cross-platform support would require
+**Rationale:** SAFE is Windows-focused. Cross-platform support would require
 re-architecting the collection modules entirely. Considered for future major
 versions if operational need emerges.
 
@@ -119,26 +119,26 @@ versions if operational need emerges.
 
 **Rationale:** Full disk imaging is well-served by existing tools (FTK Imager,
 Magnet AXIOM, dd) that have established legal acceptance and forensic
-community trust. SAHM does not attempt to replicate this. SAHM's value is in
+community trust. SAFE does not attempt to replicate this. SAFE's value is in
 acquiring evidence those tools cannot easily get — live process state, current
 network connections, fresh memory inspection — not in duplicating disk imaging.
 
-**For cases requiring full disk image:** Use existing imaging tools. SAHM
+**For cases requiring full disk image:** Use existing imaging tools. SAFE
 output can be stored alongside the disk image in the same case folder.
 
 
 ## Antivirus interaction
 
-SAHM performs forensic operations that resemble suspicious behavior to
+SAFE performs forensic operations that resemble suspicious behavior to
 heuristic AV engines: registry hive copies, VSS shadow creation, process
 enumeration, persistence location enumeration. This is unavoidable —
-the same behaviors that make SAHM useful for IR also trigger AV ML models.
+the same behaviors that make SAFE useful for IR also trigger AV ML models.
 
 Expect false-positive detections, particularly:
 - Microsoft Defender ML (categories like "Settings Modifier")
 - Heuristic detections by enterprise AV on first deployment
 
 Deployment recommendations:
-- Add SAHM's installation path to AV exclusions before use
-- For long-term deployment, sign sahm.exe with an authenticode certificate
+- Add SAFE's installation path to AV exclusions before use
+- For long-term deployment, sign safe.exe with an authenticode certificate
 - Submit to Microsoft and major AV vendors for whitelisting (Phase 8)

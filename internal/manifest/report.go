@@ -18,7 +18,7 @@ type CaseSummary struct {
 	TargetClass string
 	Notes       string
 	Profile     string
-	SAHMVersion string
+	SAFEVersion string
 	StartedAt   time.Time
 	EndedAt     time.Time
 	Duration    time.Duration
@@ -80,7 +80,7 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 	var b strings.Builder
 
 	b.WriteString(strings.Repeat("=", 70) + "\n")
-	b.WriteString(fmt.Sprintf("SAHM CASE REPORT — %s\n", s.CaseID))
+	b.WriteString(fmt.Sprintf("SAFE CASE REPORT — %s\n", s.CaseID))
 	b.WriteString(strings.Repeat("=", 70) + "\n\n")
 	b.WriteString(fmt.Sprintf("Case ID:      %s\n", s.CaseID))
 	if s.IRNumber != "" {
@@ -95,7 +95,7 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 		b.WriteString(fmt.Sprintf("Notes:        %s\n", s.Notes))
 	}
 	b.WriteString(fmt.Sprintf("Profile:      %s\n", s.Profile))
-	b.WriteString(fmt.Sprintf("SAHM:         v%s\n", s.SAHMVersion))
+	b.WriteString(fmt.Sprintf("SAFE:         v%s\n", s.SAFEVersion))
 	b.WriteString(fmt.Sprintf("Started:      %s\n", s.StartedAt.Format(time.RFC3339)))
 	b.WriteString(fmt.Sprintf("Ended:        %s\n", s.EndedAt.Format(time.RFC3339)))
 	b.WriteString(fmt.Sprintf("Duration:     %s\n", s.Duration))
@@ -204,7 +204,7 @@ func WriteCaseReport(caseDir string, s CaseSummary) error {
 	b.WriteString("VERIFICATION\n")
 	b.WriteString(strings.Repeat("-", 70) + "\n\n")
 	b.WriteString("To verify case integrity:\n")
-	b.WriteString(fmt.Sprintf("  sahm --verify %s\n\n", filepath.Base(caseDir)))
+	b.WriteString(fmt.Sprintf("  safe --verify %s\n\n", filepath.Base(caseDir)))
 	b.WriteString("All artifacts and module manifests are hashed in manifest.sha256.\n")
 	b.WriteString("Any modification to files in this folder will be detected.\n")
 

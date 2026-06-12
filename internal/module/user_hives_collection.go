@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"sahm/internal/pathfinder"
+	"safe/internal/pathfinder"
 )
 
 type UserHivesCollection struct{}
@@ -71,7 +71,7 @@ func (m *UserHivesCollection) Run(ctx *Context) Result {
 		humanCount++
 
 		// Translate the live profile path (e.g., C:\Users\win11test) to the
-		// shadow-mounted path (e.g., C:\sahm_shadow_XXX\Users\win11test).
+		// shadow-mounted path (e.g., C:\safe_shadow_XXX\Users\win11test).
 		shadowProfilePath, err := mapToShadowPath(p.ProfilePath, ctx.Shadow.MountedPath)
 		if err != nil {
 			result.AddWarning(p.Username,
@@ -217,7 +217,7 @@ func collectOneHiveFile(result *Result, srcPath, dstPath, originalPath, name, us
 // mounted shadow. For example:
 //
 //	live:   C:\Users\win11test
-//	shadow: C:\sahm_shadow_<timestamp>\Users\win11test
+//	shadow: C:\safe_shadow_<timestamp>\Users\win11test
 //
 // Returns an error if the live path does not start with C:\ (we only shadow C:).
 func mapToShadowPath(livePath, shadowMountPath string) (string, error) {

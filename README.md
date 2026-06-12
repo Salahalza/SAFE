@@ -1,17 +1,15 @@
-# SAHM
+# SAFE
 
-**System for Artifact Harvesting and Management**
+**System for Artifacts Forensic and Examination**
 
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![Status](https://img.shields.io/badge/status-Phase%201%20complete-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2F11-blue)
 
-*SAHM (سهم) means "arrow" in Arabic.*
-
-SAHM is a Windows forensic acquisition tool built for incident response field
+SAFE is a Windows forensic acquisition tool built for incident response field
 work. It is a single self-contained executable — carried on a USB SSD, run on a
 targeted machine — that collects tamper-evident forensic evidence into a case
-folder. The case is then taken back to the lab, where SAHM's analysis mode
+folder. The case is then taken back to the lab, where SAFE's analysis mode
 produces parsed, analyst-ready output.
 
 Written in Go. Cross-compiled to Windows from macOS/Linux. No installer, no
@@ -43,14 +41,14 @@ documented as eleven further phases in [`docs/PLAN.md`](docs/PLAN.md).
 
 ---
 
-## Why SAHM exists
+## Why SAFE exists
 
 Existing acquisition workflows on the team rely on combinations of KAPE, EZ
 Tools, FTK Imager, and ad-hoc scripts. Each analyst runs a slightly different
 process, output is inconsistent, and which artifacts get collected depends on
 who is on call. Lab analysis is then held up by inconsistent input formats.
 
-SAHM standardizes the field acquisition step: every analyst, every case,
+SAFE standardizes the field acquisition step: every analyst, every case,
 produces the same case folder structure with the same coverage and the same
 integrity chain. Lab analysis then operates on a known input format rather than
 rebuilding parsing per case.
@@ -76,16 +74,16 @@ current toolchain.
    registry hives, because volatile state is gone if collection is interrupted
    while static artifacts survive.
 
-3. **Collection on target, parsing in lab.** SAHM is a quiet visitor. Every
+3. **Collection on target, parsing in lab.** SAFE is a quiet visitor. Every
    command risks alerting EDR, tripping anti-forensic logic, and polluting the
    evidence with collection noise. The collection profile copies files and runs
    read-only commands only; all parsing is deferred to lab analysis via
-   `sahm --analyze`.
+   `safe --analyze`.
 
 4. **Tamper-evident output.** Every collected file is SHA-256 hashed, every
    module produces a manifest, and the case ships with a top-level manifest
    covering every file. Verification is offline and works on any machine with
-   the `sahm` binary.
+   the `safe` binary.
 
 5. **Self-contained.** One Go binary. No runtime dependencies, no installer, no
    network requirement. Everything ships in the executable.
@@ -123,9 +121,9 @@ The `rapid_triage` profile executes nine modules in order of volatility:
 | 9 | `prefetch_collection` | All `.pf` files from `C:\Windows\Prefetch` (VSS) |
 
 A clean Windows 11 admin run produces roughly 500 artifacts in ~30 seconds, and
-the case folder is fully verifiable with `sahm --verify`.
+the case folder is fully verifiable with `safe --verify`.
 
-The analyzer (`sahm --analyze`) currently ships two parsers:
+The analyzer (`safe --analyze`) currently ships two parsers:
 
 - **UserAssist** — reads collected NTUSER.DAT hives and produces per-user CSVs
   with decoded program execution paths, run counts, focus times, and last-run
@@ -141,7 +139,7 @@ via glob.
 ## Architecture
 
 ```
-cmd/sahm/                  CLI entry point
+cmd/safe/                  CLI entry point
 internal/
   module/                  collection modules (one .go per module)
   analyzer/                lab-side parsers (one .go per parser)
@@ -162,8 +160,8 @@ Key infrastructure:
   such modules. This cut amcache collection from ~1.6 s to ~60 ms, with similar
   gains elsewhere.
 
-- **Orphan shadow cleanup.** SAHM identifies its own shadows via matching
-  symlinks at `C:\sahm_shadow_*` and cleans orphans from interrupted runs at
+- **Orphan shadow cleanup.** SAFE identifies its own shadows via matching
+  symlinks at `C:\safe_shadow_*` and cleans orphans from interrupted runs at
   every startup. An explicit `--cleanup-shadows` flag is also available.
 
 - **Unicode-safe user profile discovery.** Tested against profiles with Cyrillic
@@ -188,10 +186,10 @@ Key infrastructure:
 
 ```bash
 # macOS/Linux development build (for running analyzer mode in the lab)
-go build -o sahm ./cmd/sahm
+go build -o safe ./cmd/safe
 
 # Windows production build (cross-compiled)
-GOOS=windows GOARCH=amd64 go build -o sahm.exe ./cmd/sahm
+GOOS=windows GOARCH=amd64 go build -o safe.exe ./cmd/safe
 ```
 
 The Windows binary is the one carried to a targeted machine. The macOS/Linux
@@ -206,14 +204,14 @@ binary is sufficient for running analyzer mode against case folders in the lab.
 CLI mode:
 
 ```
-.\sahm.exe --case INC-2026-0418 --analyst <name> \
+.\safe.exe --case INC-2026-0418 --analyst <name> \
            --target <hostname> --target-class workstation
 ```
 
 Interactive TUI mode (guided input):
 
 ```
-.\sahm.exe --tui
+.\safe.exe --tui
 ```
 
 Common flags:
@@ -228,7 +226,7 @@ Common flags:
 | `--output <dir>` | Case output base directory |
 | `--dry-run` | Validate environment without collecting |
 | `--list-profiles` | List available profiles |
-| `--cleanup-shadows` | Remove SAHM-created VSS shadows from interrupted runs |
+| `--cleanup-shadows` | Remove SAFE-created VSS shadows from interrupted runs |
 | `--skip-preflight` | Skip preflight checks (advanced use only) |
 
 A typical `rapid_triage` run takes ~30 seconds on a healthy Windows 11
@@ -237,7 +235,7 @@ workstation. Output is written to `<output>/CASE-<id>_<timestamp>/`.
 ### Analysis (back in the lab, on the analyst's workstation)
 
 ```
-sahm --analyze <case-folder>
+safe --analyze <case-folder>
 ```
 
 Reads the collected case folder and produces parsed output in a
@@ -247,7 +245,7 @@ the target machine is never re-touched.
 ### Verification
 
 ```
-sahm --verify <case-folder>
+safe --verify <case-folder>
 ```
 
 Walks every file, compares it to its recorded SHA-256, and reports any mismatch.
@@ -255,7 +253,7 @@ Useful for chain-of-custody documentation and long-term storage integrity.
 
 ---
 
-## What SAHM does NOT do
+## What SAFE does NOT do
 
 These are deliberate scope boundaries, documented with rationale in
 [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md):
@@ -269,9 +267,9 @@ These are deliberate scope boundaries, documented with rationale in
 - Mobile forensics
 - Network-based collection — offline-first design only
 
-SAHM gets the evidence those tools cannot easily get (live state, integrated
+SAFE gets the evidence those tools cannot easily get (live state, integrated
 collection across artifact types, standardized output). Those tools get the
-evidence SAHM does not try to get.
+evidence SAFE does not try to get.
 
 ---
 
@@ -311,7 +309,7 @@ Using mature libraries rather than hand-rolling equivalents is deliberate: hive
 parsing alone (regparser) represents years of refinement across thousands of
 real cases, and replacing it would introduce forensic-correctness risk far worse
 than a tightly-scoped permissive dependency. Equally deliberate is *not* bundling
-third-party binaries (KAPE, EZ Tools, WinPmem): SAHM ships as one statically
+third-party binaries (KAPE, EZ Tools, WinPmem): SAFE ships as one statically
 linked Go binary with no external executable dependencies, minimizing license
 complexity, attack surface, and update friction.
 
@@ -319,7 +317,7 @@ complexity, attack surface, and update friction.
 
 ## Internal use
 
-SAHM is currently private to a single IR team and is not yet positioned for
+SAFE is currently private to a single IR team and is not yet positioned for
 external distribution. Decisions about open-source release, commercial
 licensing, or wider internal rollout are deferred until v1.0 is stable.
 </content>

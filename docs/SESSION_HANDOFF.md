@@ -11,20 +11,15 @@ to load context.
 
 ## Where We Are
 
-Phase 1 is complete; Sessions M1 (ASCII fallback + analyze-flow testing)
-and M2 (README restructure) are done. The project is in a clean, working
-state on the `main` branch. All commits are pushed to origin.
-
-**Latest commits** (newest first):
-- `bd496e8` docs: restructure README for GitHub presentation (M2)
-- `316eb3b` docs: mark M1 complete and elevate M2 to current session in handoff
-- `85f1c70` journal: session 2026-06-12 — ASCII fallback and TUI width fixes
-- `8c784a2` docs: rename the journal notes section heading for clarity
-- `473c971` docs: forbid Co-Authored-By and AI references in commit messages
+Phase 1 is complete. The migration sessions are all done: M1 (ASCII
+fallback + analyze-flow testing), M2 (README restructure), and M3
+(SAHM → SAFE rename). The project is now named **SAFE** end to end —
+Go module `safe`, `cmd/safe/`, `C:\safe_shadow_*`, regenerated TUI
+banner, all docs. The next work is Phase 2 module development.
 
 **What works:**
-- Collection via `sahm --tui` or CLI flags
-- Analysis via `sahm --analyze <case-folder>` or TUI Option 2
+- Collection via `safe --tui` or CLI flags
+- Analysis via `safe --analyze <case-folder>` or TUI Option 2
 - Report viewing via TUI Option 3 (structured, scrollable, viewport-based)
 - VSS shadow management with orphan cleanup
 - IR# / CSI# case metadata fields
@@ -32,7 +27,7 @@ state on the `main` branch. All commits are pushed to origin.
 - 9 collection modules: process, network, system metadata, event logs,
   registry, persistence, amcache, user hives, prefetch
 - 2 analyzer parsers: UserAssist, Prefetch
-- Block-letter SAHM banner on welcome screen
+- Block-letter SAFE banner on welcome screen
 
 **What's broken or ugly:**
 - AV false positive on Defender (documented; not a real issue)
@@ -41,44 +36,14 @@ state on the `main` branch. All commits are pushed to origin.
   in the analyze view, and unwrapped analyze-header paths on very narrow
   windows (both tracked in docs/journal/2026-06-12-ascii-fallback.md)
 
-**Resolved in M1:**
-- Plain Windows PowerShell unicode rendering — full `internal/tui/` package
-  now ASCII-safe; report-viewer and analyze-view width clipping fixed;
-  analyze flow verified end-to-end on the VM
-
 ---
 
 ## Immediate Next Steps
 
-The migration-focused sessions close Phase 1 loose ends before Phase 2.
-See docs/MIGRATION_PLAN.md for detail.
+Phase 1 and all migration loose ends are closed. **Phase 2 begins next.**
 
-### Session M1: ASCII character fallback + analyze flow testing — DONE (2026-06-12)
-Full `internal/tui/` package made ASCII-safe for plain Windows PowerShell,
-report-viewer/analyze-view width clipping fixed, analyze flow verified
-end-to-end on the VM. Commits `afb42e6`..`85f1c70`. See
-docs/journal/2026-06-12-ascii-fallback.md.
-
-### Session M2: README update — DONE (2026-06-12)
-Full README restructure for GitHub presentation: 3 static badges, 4-profile
-catalog table, phase-status table rebuilt from canonical docs/PLAN.md
-(12 phases), parser count corrected to 2. Rendering verified on GitHub.
-Commit `bd496e8`. See docs/journal/2026-06-12b-readme-update.md.
-
-### Session M3: SAHM → SAFE rename — CURRENT SESSION (next)
-**Priority:** HIGH (deliberate)
-**Effort:** 2-3 hours
-
-Mechanical rename across the codebase. Atomic commit. See "Rename Plan"
-below.
-
-After M3, the project is renamed and polished. Phase 2 begins.
-
----
-
-## Phase 2 Roadmap
-
-See docs/PLAN.md for full phase breakdown and docs/ROADMAP.md for
+### Phase 2 — Extended collection
+See docs/PLAN.md for the full phase breakdown and docs/ROADMAP.md for
 session-level estimates.
 
 **Phase 2 modules to build:**
@@ -90,68 +55,24 @@ Phase 2 effort estimate: 6-10 sessions.
 
 ---
 
-## Rename Plan: SAHM → SAFE
+## Rename: SAHM → SAFE — DONE (Session M3, 2026-06-12c)
 
-Mechanical change. ~2-3 hours including thorough VM testing.
+The rename is executed. The Go module is `safe`, the entry point is
+`cmd/safe/main.go`, the binary is `safe.exe`, VSS shadow symlinks use the
+`C:\safe_shadow_*` prefix, the welcome banner spells SAFE, and the JSON
+case-metadata version tag is `safe_version`. The acronym now expands to
+**System for Artifacts Forensic and Examination**.
 
-### Pre-rename verification
-```bash
-git status                              # must be clean
-go build ./...                          # must pass
-GOOS=windows GOARCH=amd64 go build -o sahm.exe ./cmd/sahm
-                                        # must pass
-```
+Texture and decisions are in docs/journal/2026-06-12c-safe-rename.md.
 
-### Changes required
+**Still outstanding (manual, external — not blocking):**
+- Rename the GitHub repo in repo settings.
+- Update the local remote URL afterward:
+  `git remote set-url origin <new-url>`.
 
-**Code identifiers:**
-- `go.mod` — `module sahm` → `module safe`
-- All Go imports: `sahm/internal/...` → `safe/internal/...`
-- Binary build commands: `sahm.exe` → `safe.exe`
-- Version variable: `sahmVersion` → `safeVersion`
-
-**Configuration:**
-- VSS shadow symlinks: `C:\sahm_shadow_*` → `C:\safe_shadow_*`
-- Search for any "sahm" string references in code
-
-**Documentation:**
-- `README.md` — rewrite header, references
-- `docs/PLAN.md` — references
-- `docs/PROFILES.md` — references
-- `docs/LIMITATIONS.md` — references
-- `docs/MODULES_REFERENCE.md` — references
-- `docs/DESIGN_QUESTIONS.md` — references
-- `CLAUDE.md` — update project identity section
-- `docs/SESSION_HANDOFF.md` — update references
-
-**Visual:**
-- `internal/tui/styles.go` — block-letter banner currently spells "SAHM",
-  regenerate for "SAFE" (same 5-row block style, same colors)
-- All title strings: "SAHM — System..." → "SAFE — System..."
-- All status output: "SAHM v0.1.0" → "SAFE v0.1.0"
-
-**External (manual):**
-- GitHub repo name rename in repo settings
-- Local remote URL update: `git remote set-url origin <new-url>`
-- CHANGELOG historical entries stay as-is (they describe past state)
-
-### Verification after rename
-```bash
-go build ./...
-GOOS=windows GOARCH=amd64 go build -o safe.exe ./cmd/safe
-# Test all three TUI flows on VM
-# Test CLI: safe --tui, safe --analyze, safe --verify
-# Confirm output strings reference SAFE not SAHM
-```
-
-### Commit strategy
-One atomic commit. Easy to revert if anything's wrong.
-
-```bash
-git add -A
-git commit -m "rename: SAHM → SAFE (System for Artifacts Forensic and Examination)"
-git push
-```
+**Deliberately left as-is (historical record):**
+- Journal entries before M3 and CHANGELOG entries dated before the rename
+  still say SAHM. They describe past state and stay unchanged.
 
 ---
 
@@ -186,7 +107,7 @@ relevant work starts:
 
 **Build:**
 - `go build ./...` for local
-- Cross-compile to Windows for VM testing
+- Cross-compile to Windows: `GOOS=windows GOARCH=amd64 go build -o safe.exe ./cmd/safe`
 
 **Test:**
 - VM is the integration test environment

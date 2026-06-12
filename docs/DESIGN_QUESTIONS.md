@@ -1,4 +1,4 @@
-# SAHM Design Questions
+# SAFE Design Questions
 
 This document tracks open design questions, deferred decisions, and known
 items that need revisiting before pilot deployment or v1.0 release.
@@ -83,7 +83,7 @@ the rapid profile focused.
 
 **Status:** Open. Scoped for endpoint_deep profile.
 
-**Question:** Which browsers should SAHM collect artifacts from, and what
+**Question:** Which browsers should SAFE collect artifacts from, and what
 artifacts per browser?
 
 **Considerations:**
@@ -111,7 +111,7 @@ artifacts per browser?
 **Status:** Open. Required for endpoint_deep profile completion (deferred to
 later module additions).
 
-**Question:** How should SAHM extract $MFT (Master File Table) and USN Journal?
+**Question:** How should SAFE extract $MFT (Master File Table) and USN Journal?
 
 **Options:**
 1. Use Windows API DeviceIoControl with FSCTL_QUERY_USN_JOURNAL — pure Go,
@@ -129,7 +129,7 @@ Implementation complexity is moderate but manageable.
 **Status:** Open. Required for domain_controller profile (July–August 2026
 timeline).
 
-**Question:** Should SAHM enumerate SYSVOL contents on domain controllers?
+**Question:** Should SAFE enumerate SYSVOL contents on domain controllers?
 
 **Considerations:**
 - Useful for finding GPO modifications and scripts left for persistence
@@ -145,7 +145,7 @@ timeline).
 
 **Status:** Resolved.
 
-**Question:** How should SAHM handle memory acquisition?
+**Question:** How should SAFE handle memory acquisition?
 
 **Options considered:**
 1. Bundle WinPmem (Apache 2.0) — most direct, requires accepting third-party
@@ -160,13 +160,13 @@ timeline).
 **Decision:** Option 4. Build `process_memory_inspection` module in Go.
 
 **Rationale:**
-- Aligns with SAHM's "precisely fetch valuable data, not garbage" identity
+- Aligns with SAFE's "precisely fetch valuable data, not garbage" identity
 - No third-party dependencies, no kernel driver, no signing requirements
 - Covers the majority of operational IR cases
 - Full memory acquisition deferred to LIMITATIONS.md as a known gap
 
 **Tradeoffs:**
-- Kernel-mode threats remain invisible to SAHM
+- Kernel-mode threats remain invisible to SAFE
 - Cases requiring full memory dump must use separate tools
 - Documented honestly in LIMITATIONS.md so users/stakeholders know the scope
 
@@ -189,7 +189,7 @@ to handle non-Latin characters correctly. Persistence_core still uses
 `reg query` for run keys, winlogon keys, IFEO, and AppInit_DLLs.
 
 **Risk:** Low — persistence locations rarely contain non-Latin value names.
-But a deliberately-named malware persistence entry could evade SAHM's
+But a deliberately-named malware persistence entry could evade SAFE's
 collection on some Windows locales.
 
 **Decision pending:** Convert before pilot deployment. Same pattern as
@@ -246,7 +246,7 @@ on non-English Windows locales.
 
 **Status:** Open. High priority before pilot.
 
-**Question:** SAHM has no automated test suite. All testing is manual,
+**Question:** SAFE has no automated test suite. All testing is manual,
 running on a single Windows 11 VM.
 
 **Risks of current approach:**
@@ -273,7 +273,7 @@ pilot. Full automated regression suite is post-v1.0 work.
 **Status:** Open. Required for pilot deployment.
 
 **Background:** Unsigned executables trigger SmartScreen warnings, EDR alerts,
-and possible execution blocks on hardened targets. SAHM should ship signed
+and possible execution blocks on hardened targets. SAFE should ship signed
 for production use.
 
 **Options:**
@@ -298,7 +298,7 @@ by September pilot.
 **Question:** How are the 10 SSDs maintained as identical, verified copies?
 
 **Requirements:**
-- Gold master SSD (read-only) contains the authoritative SAHM binary, tools,
+- Gold master SSD (read-only) contains the authoritative SAFE binary, tools,
   and supporting files
 - 10 field SSDs are imaged from the gold master at start of rotation
 - After each case, field SSDs have Partition B (evidence) wiped and re-imaged
@@ -323,7 +323,7 @@ by September pilot.
 **Minimum viable (for v1.0):**
 - Run rapid_triage against the reference VM
 - Verify expected artifact count (currently 48 on clean Windows 11 admin run)
-- Verify manifest passes `sahm --verify`
+- Verify manifest passes `safe --verify`
 - Verify case_report.txt is generated and well-formed
 - Verify expected info-level findings appear (Sysmon channel absent, empty
   run keys)
@@ -345,12 +345,12 @@ script before pilot. Full suite is v1.1+ work.
 
 **Status:** Open. Out of scope for v1.0 per earlier decision.
 
-**Question:** Should SAHM integrate with the lab's case tracking system?
+**Question:** Should SAFE integrate with the lab's case tracking system?
 
 **Current plan:** No. Analysts manually upload case folders to NetApp and
 create Jira tickets manually with case metadata.
 
-**Future consideration:** v1.5+ could add a `sahm publish` command that uploads
+**Future consideration:** v1.5+ could add a `safe publish` command that uploads
 to NetApp and creates a Jira ticket with case ID, status, and key findings.
 This is workflow integration, not collection capability.
 
@@ -396,7 +396,7 @@ Not blocking pilot deployment.
 
 **Status:** Open. Critical infrastructure for Phase 1.
 
-**Question:** How does SAHM read files that Windows holds open with exclusive
+**Question:** How does SAFE read files that Windows holds open with exclusive
 locks (registry hives, $MFT, browser databases, etc.)?
 
 **Discovered while building:** amcache_collection module — file copy fails

@@ -57,7 +57,7 @@ var (
 			Bold(true).
 			MarginTop(1)
 
-	// brandStyle renders the multi-row block-letter SAHM banner.
+	// brandStyle renders the multi-row block-letter SAFE banner.
 	// Used only on the welcome screen.
 	brandStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#7DD3FC")).
@@ -91,14 +91,14 @@ func statusBadgeColors(status string) (bg lipgloss.Color) {
 	}
 }
 
-// sahmBanner is the multi-row block-letter SAHM logo. Five rows tall,
+// safeBanner is the multi-row block-letter SAFE logo. Five rows tall,
 // rendered with solid block characters. Used as a brand element on the
 // welcome screen only.
-const sahmBanner = `███████  █████  ██   ██ ███    ███
-██      ██   ██ ██   ██ ████  ████
-███████ ███████ ███████ ██ ████ ██
-     ██ ██   ██ ██   ██ ██  ██  ██
-███████ ██   ██ ██   ██ ██      ██`
+const safeBanner = `███████  █████  ███████ ███████
+██      ██   ██ ██      ██
+███████ ███████ ██████  ██████
+     ██ ██   ██ ██      ██
+███████ ██   ██ ██      ███████`
 
 // Card styles for the report viewer
 

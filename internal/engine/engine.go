@@ -6,10 +6,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"sahm/internal/manifest"
-	"sahm/internal/module"
-	"sahm/internal/profile"
-	"sahm/internal/vss"
+	"safe/internal/manifest"
+	"safe/internal/module"
+	"safe/internal/profile"
+	"safe/internal/vss"
 )
 
 type Engine struct {

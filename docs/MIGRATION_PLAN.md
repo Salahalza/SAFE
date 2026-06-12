@@ -121,9 +121,12 @@ breaking the build. Sets up for the rename in session M3.
 
 ---
 
-## Session M3: SAHM → SAFE rename
+## Session M3: SAHM → SAFE rename — DONE (2026-06-12c)
 
 **Goal:** Execute the deliberate project rename. Atomic, clean, verified.
+
+**Outcome:** Done. See docs/journal/2026-06-12c-safe-rename.md and the
+CHANGELOG entry. The steps below are kept as the executed record.
 
 **Why third:** Biggest mechanical change. Best done with the project in
 a polished, well-documented state (after sessions M1 and M2). Atomic

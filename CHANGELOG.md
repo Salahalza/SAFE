@@ -1,6 +1,10 @@
-# SAHM Changelog
+# SAFE Changelog
 
-**SAHM — System for Artifact Harvesting and Management**
+**SAFE — System for Artifacts Forensic and Examination**
+
+*Formerly SAHM (System for Artifact Harvesting and Management). Entries
+dated before the 2026-06-12 rename describe the project under its old name
+and are left unchanged.*
 
 ## 2026-04-23 — Foundation laid
 
@@ -382,3 +386,29 @@ as '?'. Verified end-to-end on the Windows 11 VM across all TUI flows.
 - Analyze view: long parser paths, findings, and stats overflowed the right
   edge. They now wrap to the available width with a hanging indent, so no
   forensic text (paths, finding messages) is lost.
+
+
+## 2026-06-12 — Session M3: renamed SAHM → SAFE
+
+Mechanical, project-wide rename in a single atomic commit. No behavior
+change; the tool does exactly what it did, under a new name.
+
+- Acronym now expands to **System for Artifacts Forensic and Examination**.
+- Go module `sahm` → `safe`; all `sahm/internal/...` imports → `safe/internal/...`.
+- Entry point `cmd/sahm/main.go` → `cmd/safe/main.go`; binary is now `safe.exe`.
+- Identifiers renamed: `sahmVersion` → `safeVersion`, `SAHMVersion` →
+  `SAFEVersion`, `sahmBanner` → `safeBanner`, `ListSAHMShadows` →
+  `ListSAFEShadows`.
+- VSS shadow symlink prefix `C:\sahm_shadow_*` → `C:\safe_shadow_*`
+  (orphan-cleanup glob updated to match).
+- Case-metadata JSON tag `sahm_version` → `safe_version`. Note: the report
+  viewer reads the new tag, so the version field is blank for case folders
+  collected under the old SAHM binary.
+- Welcome-screen block-letter banner regenerated SAHM → SAFE.
+- Write-test sentinel `.sahm-write-test` → `.safe-write-test`; `.gitignore`
+  build-artifact rules updated to `safe` / `safe.exe`.
+- Docs updated (README, CLAUDE.md, PLAN, PROFILES, LIMITATIONS,
+  DESIGN_QUESTIONS, SESSION_HANDOFF). Pre-rename journal entries and the
+  CHANGELOG entries above this line keep the SAHM name as historical record.
+- Verified end-to-end on the Windows 11 VM: all three TUI flows, plus
+  `safe --tui`, `safe --analyze`, and `safe --verify`.

@@ -1,5 +1,5 @@
 // Package analyzer provides parsing and analysis of artifacts collected by
-// SAHM, intended to run on an analyst's workstation (not on the targeted
+// SAFE, intended to run on an analyst's workstation (not on the targeted
 // device).
 //
 // The collection-side code (in internal/module) does the minimum necessary
@@ -9,7 +9,7 @@
 //
 // This separation matters operationally: every command run on a target adds
 // noise to event logs, may trigger EDR, and risks interaction with malware
-// watching for forensic activity. SAHM is designed to be a quiet visitor.
+// watching for forensic activity. SAFE is designed to be a quiet visitor.
 package analyzer
 
 import (

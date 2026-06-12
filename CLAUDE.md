@@ -85,25 +85,28 @@ built. The journal shows what we learned.
 
 ## Project Identity
 
-**Current name in code:** SAHM (System for Artifact Harvesting and Management)
+**Name:** SAFE (System for Artifacts Forensic and Examination)
 
-**Target name (planned rename):** SAFE (System for Artifacts Forensic and Examination)
+**Rename status:** DONE. The codebase was renamed from SAHM → SAFE in
+session 2026-06-12c (Go module, `cmd/safe/`, identifiers, VSS shadow
+prefix `C:\safe_shadow_*`, TUI banner, all docs). The Go module is now
+`safe`. Older journals and historical CHANGELOG entries still say SAHM —
+that is correct; they describe past state and stay as-is.
 
-**Rename status:** Deliberate future task. Not started. See
-`docs/SESSION_HANDOFF.md` for the migration plan.
+**Former name:** SAHM (System for Artifact Harvesting and Management).
+Renamed because the original collision concern (a Saudi stocks app uses
+"SAHM") was reason enough once a better expansion was found.
 
 **Naming exploration history (condensed):**
 We considered ATHAR (أثر, "trace"), BASMA (بصمة, "fingerprint"),
 FAHS (فحص, "examination"), SAYF (سيف, "sword"), and SWORD before
-landing on SAFE. The rename has not been executed because the
-collision concern (a Saudi stocks app uses "SAHM") does not block
-internal development. Re-litigating the name is not useful.
+landing on SAFE. Re-litigating the name is not useful.
 
 ---
 
 ## Project Purpose
 
-SAHM/SAFE is a Windows forensic acquisition tool written in Go, designed
+SAFE is a Windows forensic acquisition tool written in Go, designed
 for incident response field work. Single developer: Salah, an IR analyst
 based in Saudi Arabia. Primary use case is acquiring forensic artifacts
 from potentially compromised Windows targets quickly and consistently.
@@ -138,10 +141,10 @@ analyze, or interpret data on the target device.
 
 **Why:** Every command run on a target adds noise to event logs, may
 trigger EDR, and risks interaction with malware that watches for forensic
-activity. SAHM/SAFE is a "quiet visitor."
+activity. SAFE is a "quiet visitor."
 
 **Where parsing happens:** `internal/analyzer/` packages, run via
-`sahm --analyze <case-folder>` in the analyst's lab environment.
+`safe --analyze <case-folder>` in the analyst's lab environment.
 
 **Exception:** A module may run a single PowerShell or native Windows
 command if that command IS the artifact (e.g., `tasklist /v` produces
@@ -331,7 +334,7 @@ Must pass before any commit.
 ### Cross-compile for Windows VM
 
 ```bash
-GOOS=windows GOARCH=amd64 go build -o sahm.exe ./cmd/sahm
+GOOS=windows GOARCH=amd64 go build -o safe.exe ./cmd/safe
 ```
 
 ### Test on VM checklist
@@ -340,9 +343,9 @@ For TUI changes: walk through all three options, verify rendering,
 confirm no regressions.
 
 For collection changes: run real collection, verify artifacts, run
-`sahm --verify`, check case_report.txt.
+`safe --verify`, check case_report.txt.
 
-For analyzer changes: run `sahm --analyze`, verify lab_report/ outputs,
+For analyzer changes: run `safe --analyze`, verify lab_report/ outputs,
 check analyzer_result.json.
 
 ### Git workflow
@@ -368,8 +371,8 @@ declined rebase due to risk.
 ### Directory structure
 
 ```
-sahm/
-├── cmd/sahm/main.go
+safe/
+├── cmd/safe/main.go
 ├── internal/
 │   ├── analyzer/                # Lab-side parsing
 │   ├── casemeta/                # Case metadata
@@ -424,12 +427,12 @@ sahm/
 
 ### Antivirus false positives
 
-Microsoft Defender ML flags sahm.exe as "Program:Win32/Contebrew.A!ml"
+Microsoft Defender ML flags safe.exe as "Program:Win32/Contebrew.A!ml"
 (category: Settings Modifier). False positive from legitimate forensic
 behavior. Documented in `docs/LIMITATIONS.md`. Mitigation: AV exclusion
 on VM. Code signing planned for Phase 12.
 
-**Do NOT** upload sahm.exe to VirusTotal. Salah declined this.
+**Do NOT** upload safe.exe to VirusTotal. Salah declined this.
 
 ### Plain Windows PowerShell rendering
 
@@ -469,6 +472,6 @@ decisions.
 - Not a multi-platform tool (Windows only, by design)
 - Not a network IDS
 
-SAHM/SAFE captures live and recently-accessible Windows host evidence
+SAFE captures live and recently-accessible Windows host evidence
 quickly and verifiably. It complements other tools rather than replacing
 them.

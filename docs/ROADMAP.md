@@ -1,4 +1,4 @@
-# SAFE/SAHM Roadmap
+# SAFE Roadmap
 
 Last updated: 2026-06-10
 
@@ -15,9 +15,10 @@ For phase-level vision, see `docs/PLAN.md`.
 |---|---|---|
 | M1 | ASCII character fallback for TUI; test analyze flow end-to-end | 60-90 min |
 | M2 | README rewrite for GitHub presentation; profiles section | 60-90 min |
-| M3 | SAHM → SAFE rename, atomic | 2-3 hours |
+| M3 | SAHM → SAFE rename, atomic — **DONE** (2026-06-12c) | 2-3 hours |
 
-After M3, the project is renamed, polished, and ready for Phase 2.
+M1–M3 are complete. The project is renamed (SAFE), polished, and ready for
+Phase 2.
 
 ---
 

@@ -23,7 +23,7 @@ type reportData struct {
 	Target      string
 	TargetClass string
 	Profile     string
-	SAHMVersion string
+	SAFEVersion string
 	Notes       string
 	CreatedAt   time.Time
 
@@ -71,7 +71,7 @@ func loadReportData(caseDir string) (*reportData, error) {
 		Notes            string    `json:"notes"`
 		ProfileName      string    `json:"profile_name"`
 		CreatedAt        time.Time `json:"created_at"`
-		SAHMVersion      string    `json:"sahm_version"`
+		SAFEVersion      string    `json:"safe_version"`
 	}
 	if err := json.Unmarshal(caseBytes, &caseRaw); err != nil {
 		return nil, fmt.Errorf("parse case.json: %w", err)
@@ -116,7 +116,7 @@ func loadReportData(caseDir string) (*reportData, error) {
 		Target:      caseRaw.TargetIdentifier,
 		TargetClass: caseRaw.TargetClass,
 		Profile:     caseRaw.ProfileName,
-		SAHMVersion: caseRaw.SAHMVersion,
+		SAFEVersion: caseRaw.SAFEVersion,
 		Notes:       caseRaw.Notes,
 		CreatedAt:   caseRaw.CreatedAt,
 		Status:      resultRaw.Status,
@@ -472,7 +472,7 @@ func renderVerificationFooter(rd *reportData) string {
 	title := reportSectionTitleStyle.Render("Verification")
 	cmd := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#94A3B8")).
-		Render("  sahm --verify " + filepath.Base(rd.CaseDir))
+		Render("  safe --verify " + filepath.Base(rd.CaseDir))
 	hint := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#64748B")).
 		Italic(true).

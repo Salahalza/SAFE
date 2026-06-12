@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"sahm/internal/engine"
-	"sahm/internal/module"
+	"safe/internal/engine"
+	"safe/internal/module"
 
 	"github.com/charmbracelet/lipgloss"
 )
