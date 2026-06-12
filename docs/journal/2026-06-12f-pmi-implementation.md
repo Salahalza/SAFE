@@ -50,9 +50,11 @@ Implement the collect-only `process_memory_inspection` module designed in
   SESSION_HANDOFF.md, CLAUDE.md (profile + phase status), ROADMAP.md (Phase 2
   table marked done, 2.5 deferred to Phase 4), PLAN.md (Phase 2 status block),
   PROFILES.md (endpoint_deep → Built v0.3.0, new memory_triage profile,
-  renumbered downstream profiles, refreshed build timeline). Flagged
-  MODULES_REFERENCE.md as stale (6 of 12 modules, pre-rename "SAHAM" title) —
-  needs its own dedicated pass, not done here.
+  renumbered downstream profiles, refreshed build timeline).
+- MODULES_REFERENCE.md brought fully current: title fixed (SAHAM → SAFE), all
+  12 collection modules documented (was 6), with real artifact tables read from
+  source, a profile-membership matrix, corrected execution-order folder
+  structure, and updated status/priority semantics.
 
 ## What got decided
 

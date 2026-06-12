@@ -90,9 +90,9 @@ tracking.
 - **Begin Phase 3 (Browser + Per-User)** — the next *collection* phase
   (per_user_iteration infra, browser_artifacts, jump_lists). See ROADMAP 3.x.
 
-Note: MODULES_REFERENCE.md is stale (documents 6 of 12 modules, pre-rename
-"SAHAM" title) and wants its own dedicated doc pass — flagged 2026-06-12f, not
-yet done.
+Note: MODULES_REFERENCE.md was brought fully current 2026-06-12f — title fixed
+(SAFE), all 12 collection modules documented, profile-membership matrix and
+execution-order folder structure corrected.
 
 The TUI-scroll work is fully done — the form and all summary screens
 (`confirm`, `complete`, `analyze-complete`) scroll instead of clipping.
