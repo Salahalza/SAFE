@@ -129,6 +129,26 @@ clever patterns when straightforward ones work.
 
 ---
 
+## Operational Security — No External Publication (DO NOT VIOLATE)
+
+SAFE's binary (`safe.exe`) and its source code must NEVER be uploaded,
+submitted, posted, pasted, or transmitted to any third-party internet
+service. This includes — but is not limited to — VirusTotal, any other AV
+or malware scanner, Microsoft / AV-vendor submission portals, pastebins,
+gists, file-sharing sites, and any external or third-party API.
+
+The ONLY permitted internet destination for this project is its own private
+GitHub repository (`git push` / `git pull` to the configured `origin`).
+Nothing else about this project leaves the machine.
+
+This covers whole files, snippets, hashes submitted for lookup, the compiled
+binary, and any other channel that exposes the code or binary to a third
+party. No exceptions, no "just this once." If a task appears to require
+external submission (AV whitelisting, a scan, a paste, a share link), STOP
+and ask Salah — do not proceed.
+
+---
+
 ## Architectural Principles (DO NOT VIOLATE)
 
 These are not preferences — they are load-bearing decisions for the project.
@@ -435,12 +455,17 @@ safe/
 
 ### Antivirus false positives
 
-Microsoft Defender ML flags safe.exe as "Program:Win32/Contebrew.A!ml"
-(category: Settings Modifier). False positive from legitimate forensic
-behavior. Documented in `docs/LIMITATIONS.md`. Mitigation: AV exclusion
-on VM. Code signing planned for Phase 12.
+Microsoft Defender ML flags safe.exe as false positives — seen so far:
+"Program:Win32/Contebrew.A!ml" (Settings Modifier) and, after the
+extended_persistence module, "Trojan:Win32/Bearfoos.A!ml" (Severe; the
+persistence-enumeration behavior escalates the ML verdict). Both are false
+positives from legitimate forensic behavior; flagged runs still complete
+and verify cleanly. Documented in `docs/LIMITATIONS.md`. Mitigation: AV
+exclusion on VM. Code signing planned for Phase 12.
 
-**Do NOT** upload safe.exe to VirusTotal. Salah declined this.
+**Do NOT** upload safe.exe (or its source/hashes) to VirusTotal or any
+external scanner. See the "Operational Security — No External Publication"
+rule above; this is a hard rule, not a preference.
 
 ### Plain Windows PowerShell rendering
 
