@@ -11,16 +11,16 @@ to load context.
 
 ## Where We Are
 
-Phase 1 is complete and Session M1 (ASCII fallback + analyze-flow testing)
-is done. The project is in a clean, working state on the `main` branch.
-All commits are pushed to origin.
+Phase 1 is complete; Sessions M1 (ASCII fallback + analyze-flow testing)
+and M2 (README restructure) are done. The project is in a clean, working
+state on the `main` branch. All commits are pushed to origin.
 
 **Latest commits** (newest first):
+- `bd496e8` docs: restructure README for GitHub presentation (M2)
+- `316eb3b` docs: mark M1 complete and elevate M2 to current session in handoff
 - `85f1c70` journal: session 2026-06-12 — ASCII fallback and TUI width fixes
 - `8c784a2` docs: rename the journal notes section heading for clarity
 - `473c971` docs: forbid Co-Authored-By and AI references in commit messages
-- `586df0e` changelog: Session M1 ASCII fallback and TUI width fixes
-- `afb42e6` tui: ASCII-safe rendering for plain Windows PowerShell
 
 **What works:**
 - Collection via `sahm --tui` or CLI flags
@@ -59,14 +59,13 @@ report-viewer/analyze-view width clipping fixed, analyze flow verified
 end-to-end on the VM. Commits `afb42e6`..`85f1c70`. See
 docs/journal/2026-06-12-ascii-fallback.md.
 
-### Session M2: README update — CURRENT SESSION
-**Priority:** MEDIUM
-**Effort:** 60-90 min
+### Session M2: README update — DONE (2026-06-12)
+Full README restructure for GitHub presentation: 3 static badges, 4-profile
+catalog table, phase-status table rebuilt from canonical docs/PLAN.md
+(12 phases), parser count corrected to 2. Rendering verified on GitHub.
+Commit `bd496e8`. See docs/journal/2026-06-12b-readme-update.md.
 
-Restructure README for GitHub presentation. Add profiles catalog and phase
-status.
-
-### Session M3: SAHM → SAFE rename
+### Session M3: SAHM → SAFE rename — CURRENT SESSION (next)
 **Priority:** HIGH (deliberate)
 **Effort:** 2-3 hours
 
