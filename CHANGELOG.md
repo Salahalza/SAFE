@@ -412,3 +412,31 @@ change; the tool does exactly what it did, under a new name.
   CHANGELOG entries above this line keep the SAHM name as historical record.
 - Verified end-to-end on the Windows 11 VM: all three TUI flows, plus
   `safe --tui`, `safe --analyze`, and `safe --verify`.
+
+
+## 2026-06-12 — Phase 2 begins: extended_event_channels + endpoint_deep
+
+First Phase 2 collection module.
+
+- New module `extended_event_channels`: bulk-copies the complete set of
+  .evtx channel files from C:\Windows\System32\winevt\Logs via the shared
+  VSS shadow. Where `eventlogs_core` exports 8 curated channels with
+  `wevtutil epl`, this captures every channel present on the target —
+  application- and role-specific logs (Exchange, IIS, MSSQL, AppLocker,
+  WMI-Activity, etc.).
+- Collection method is a direct shadow file copy, NOT per-channel
+  `wevtutil epl`: zero new command execution on the target (quiet-visitor
+  principle), and follows the bulk-artifact pattern (BulkFiles=N, no
+  per-file artifacts; the manifest still hashes every file).
+- The 8 core channels overlap with `eventlogs_core` by design — different
+  collection methods (live export vs. point-in-time shadow). Noted in a
+  module finding so the analyst understands the duplication.
+- New `endpoint_deep` profile (v0.1.0, interim): superset of rapid_triage
+  plus extended_event_channels; 45-minute budget. Registered in defaults,
+  so it appears in the TUI selector and as `--profile endpoint_deep`. Full
+  composition (process_memory_inspection, extended_persistence) lands in a
+  later Phase 2 session.
+- Verified end-to-end on the Windows 11 VM: 192 channels collected
+  (138 MB) in ~1.9s, status=success, manifest hashed all 192, the bulk
+  count is reported as one dataset (not 192 inflated artifacts), and
+  `--verify` passes.

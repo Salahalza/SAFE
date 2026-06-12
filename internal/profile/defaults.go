@@ -6,9 +6,9 @@ package profile
 func RegisterDefaults(r *Registry) error {
 	defaults := []*Profile{
 		RapidTriage(),
+		EndpointDeep(),
 		// More profiles get added here as they're written:
 		// VolatileCapture(),
-		// ExtendedLive(),
 		// ServerInfra(),
 	}
 	for _, p := range defaults {
