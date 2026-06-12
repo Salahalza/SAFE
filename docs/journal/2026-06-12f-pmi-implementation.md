@@ -46,6 +46,13 @@ Implement the collect-only `process_memory_inspection` module designed in
   (browser/JIT/.NET), 0 read errors, 0 truncations, ~8.8 MiB; `safe --verify`
   OK on 95 files including nested dumps/ blobs. `endpoint_deep`: all 12 modules
   success, PMI at position 02.
+- Project-wide documentation sync (Phase 2 collection marked complete):
+  SESSION_HANDOFF.md, CLAUDE.md (profile + phase status), ROADMAP.md (Phase 2
+  table marked done, 2.5 deferred to Phase 4), PLAN.md (Phase 2 status block),
+  PROFILES.md (endpoint_deep → Built v0.3.0, new memory_triage profile,
+  renumbered downstream profiles, refreshed build timeline). Flagged
+  MODULES_REFERENCE.md as stale (6 of 12 modules, pre-rename "SAHAM" title) —
+  needs its own dedicated pass, not done here.
 
 ## What got decided
 

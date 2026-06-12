@@ -1,6 +1,6 @@
 # SAFE Roadmap
 
-Last updated: 2026-06-10
+Last updated: 2026-06-12 (session 2026-06-12f)
 
 Session-level breakdown of work ahead. Each session is roughly 1-3 hours
 of focused Claude Code work. Sessions are sequential by default.
@@ -22,17 +22,26 @@ Phase 2.
 
 ---
 
-## Phase 2 — Extended Collection (6-10 sessions)
+## Phase 2 — Extended Collection — COLLECTION COMPLETE (2026-06-12f)
 
-| Session | Goal | Effort |
+All Phase 2 *collection* modules are built and VM-verified. Sessions ran out of
+table order (the contentious PMI module was resequenced after the two quieter
+extended modules — see journal 2026-06-12d). The deferred 2.5 items (COM
+hijacks, WMI) and the PMI analyzer are LAB-SIDE parsing work and move to Phase 4.
+
+| Session | Goal | Status |
 |---|---|---|
-| 2.1 | Design process_memory_inspection module | 1-2 hours |
-| 2.2 | Implement process_memory_inspection; VM test | 2-3 hours |
-| 2.3 | extended_event_channels module (bulk pattern) | 2 hours |
-| 2.4 | extended_persistence — BAM, services | 2 hours |
-| 2.5 | extended_persistence — COM, WMI extras | 2 hours |
-| 2.6 | endpoint_deep profile; integration testing | 1-2 hours |
-| 2.7 | Documentation pass | 1 hour |
+| 2.3 | extended_event_channels module (bulk pattern) | **DONE** (2026-06-12d) |
+| 2.4 | extended_persistence — BAM, services, ASEPs | **DONE** (2026-06-12d) |
+| 2.1 | Design process_memory_inspection module | **DONE** (2026-06-12e) |
+| 2.2 | Implement process_memory_inspection; VM test | **DONE** (2026-06-12f) |
+| 2.6 | endpoint_deep profile (v0.3.0) + memory_triage; integration testing | **DONE** (2026-06-12f) |
+| 2.7 | Documentation pass | **DONE** (2026-06-12f) |
+| 2.5 | extended_persistence — COM, WMI extras | **DEFERRED to Phase 4** (lab-side: per-user CLSID + WMI repository need hive/repo parsing, not on-target reg query) |
+
+Carried into Phase 4 (Parser Expansion): the `process_memory` analyzer (strings
+/ PE-carve / RWX triage over PMI dumps), the COM-hijack hive-parser, and WMI
+surfacing. The next *collection* phase is Phase 3.
 
 ---
 

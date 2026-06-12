@@ -1,6 +1,6 @@
 # SESSION HANDOFF
 
-Last updated: 2026-06-12
+Last updated: 2026-06-12 (session 2026-06-12f)
 Last assistant: Claude Code (VSCode)
 
 This document captures the current state of the project, what's in flight,
@@ -11,21 +11,26 @@ to load context.
 
 ## Where We Are
 
-Phase 1 is complete and **Phase 2 has begun** (session 2026-06-12d). The
-migration sessions are all done: M1 (ASCII fallback + analyze-flow testing),
-M2 (README restructure), and M3 (SAHM → SAFE rename). The project is named
-**SAFE** end to end — Go module `safe`, `cmd/safe/`, `C:\safe_shadow_*`,
-regenerated TUI banner, all docs.
+Phase 1 is complete and **Phase 2 (Extended Collection) collection work is
+DONE** as of session 2026-06-12f. All three planned Phase 2 collection modules
+are built and VM-verified — `extended_event_channels` and `extended_persistence`
+(2026-06-12d) and `process_memory_inspection` (designed 2026-06-12e, implemented
+2026-06-12f). The migration sessions M1–M3 are all done; the project is named
+**SAFE** end to end (Go module `safe`, `cmd/safe/`, `C:\safe_shadow_*`,
+regenerated TUI banner, all docs).
 
-First Phase 2 module shipped: `extended_event_channels` (bulk-copies the
-full `winevt\Logs` set via VSS), hosted in a new interim `endpoint_deep`
-profile. VM-verified. The new-case TUI form was also made scrollable and its
-profile selector turned into a wrapping vertical list.
+What remains under the Phase 2 umbrella is LAB-SIDE, not collection: the
+`process_memory` analyzer (parses the PMI dumps), the COM-hijack hive-parser,
+and WMI-subscription surfacing. Those are analyzer work and are tracked into
+Phase 4 (Parser Expansion). The next *collection* phase is Phase 3 (Browser +
+Per-User). See "Phase 2 status" below.
 
 **What works:**
 - Collection via `safe --tui` or CLI flags
-- Two profiles: `rapid_triage` (9 modules) and `endpoint_deep` (interim
-  v0.1.0 — rapid_triage superset + extended_event_channels)
+- Three profiles: `rapid_triage` (9 modules, v0.2.0), `endpoint_deep`
+  (v0.3.0 — rapid_triage superset + process_memory_inspection +
+  extended_persistence + extended_event_channels), and `memory_triage`
+  (v0.1.0 — the dedicated LOUD profile: process_snapshot + process_memory_inspection)
 - Analysis via `safe --analyze <case-folder>` or TUI Option 2
 - Report viewing via TUI Option 3 (structured, scrollable, viewport-based)
 - All terminal-size-sensitive screens scroll instead of clipping: the
@@ -35,9 +40,9 @@ profile selector turned into a wrapping vertical list.
 - VSS shadow management with orphan cleanup
 - IR# / CSI# case metadata fields
 - Bulk vs primary artifact distinction
-- 10 collection modules: process, network, system metadata, event logs,
+- 12 collection modules: process, network, system metadata, event logs,
   registry, persistence, amcache, user hives, prefetch, extended event
-  channels
+  channels, extended persistence, process memory inspection
 - 2 analyzer parsers: UserAssist, Prefetch
 - Block-letter SAFE banner on welcome screen
 
@@ -50,36 +55,52 @@ profile selector turned into a wrapping vertical list.
 
 ---
 
-## Immediate Next Steps
+## Phase 2 status — Extended Collection (collection DONE)
 
-Phase 2 is underway. See docs/PLAN.md for the full phase breakdown and
-docs/ROADMAP.md for session-level estimates.
+See docs/PLAN.md for the phase breakdown and docs/ROADMAP.md for session-level
+tracking.
 
-**Phase 2 modules:**
+**Phase 2 collection modules — all built and VM-verified:**
 1. `extended_event_channels` — full winevt/Logs (bulk pattern) — **DONE**
    (2026-06-12d), in `endpoint_deep`.
 2. `extended_persistence` — BAM/DAM, service registry, LSA, and other ASEPs —
-   **DONE** (2026-06-12d), in `endpoint_deep` (now v0.2.0). COM hijacks
-   deferred to a future lab hive-parser.
-3. `process_memory_inspection` — per-process memory regions — **DESIGNED**
-   (2026-06-12e, journal). Resolved to a **collect-only** design: on-target
-   dumps raw exec/RWX-private region bytes + metadata, zero interpretation; all
-   judgment moves to a lab-side `process_memory` analyzer. Lives in a new loud
-   `memory_triage` profile AND `endpoint_deep` (v0.3.0); never in rapid_triage.
-   Implementation (roadmap 2.2) NOT started.
+   **DONE** (2026-06-12d), in `endpoint_deep`.
+3. `process_memory_inspection` — collect-only per-process memory — **DONE**
+   (designed 2026-06-12e, implemented + VM-verified 2026-06-12f). On-target it
+   dumps raw exec/RWX-private region bytes + two index CSVs, zero interpretation.
+   In `memory_triage` (v0.1.0, dedicated LOUD profile) AND `endpoint_deep`
+   (v0.3.0); never in rapid_triage. First module to use native Windows syscalls
+   (build-tagged `_windows.go`/`_other.go`).
 
-**Pick next:** implement `process_memory_inspection` (roadmap 2.2 — collection
-module, VM test, then the lab `process_memory` analyzer; functional code, VM
-verification required), or build the deferred COM lab hive-parser (parses the
-already-collected SOFTWARE/NTUSER hives).
+**Deferred to LAB-SIDE work (Phase 4, Parser Expansion) — not collection:**
+- `process_memory` analyzer — strings / PE-carve / RWX triage over the PMI
+  dumps. This is the other half of the collect-only PMI design.
+- COM-hijack hive-parser — per-user CLSID isn't reachable via on-target reg
+  query; parse the already-collected SOFTWARE/NTUSER hives in lab.
+- WMI-subscription surfacing — parse the WMI repository in lab.
+
+## Immediate Next Steps
+
+**Pick next:**
+- **Lab `process_memory` analyzer** (recommended — completes the PMI feature
+  loop): a Parser globbing `modules/*_process_memory_inspection`, reading
+  `regions.csv` + the `dumps/` blobs, emitting strings / PE-carve / RWX-triage
+  findings into lab_report/. All the on-target judgement PMI deliberately skips.
+- **COM lab hive-parser** — the other deferred lab analyzer.
+- **Begin Phase 3 (Browser + Per-User)** — the next *collection* phase
+  (per_user_iteration infra, browser_artifacts, jump_lists). See ROADMAP 3.x.
+
+Note: MODULES_REFERENCE.md is stale (documents 6 of 12 modules, pre-rename
+"SAHAM" title) and wants its own dedicated doc pass — flagged 2026-06-12f, not
+yet done.
 
 The TUI-scroll work is fully done — the form and all summary screens
-(`confirm`, `complete`, `analyze-complete`) now scroll instead of clipping.
-
-Phase 2 effort estimate: 6-10 sessions.
+(`confirm`, `complete`, `analyze-complete`) scroll instead of clipping.
 
 **Build:** use `make vm` → `test-output/vm/safe.exe` (the only folder the VM
-can access). NEVER build the exe to the repo root.
+can access). NEVER build the exe to the repo root. For native-syscall modules,
+also run `GOOS=windows go vet ./internal/...` — the macOS host vet skips
+`_windows.go` files.
 
 **HARD RULE:** never upload/submit safe.exe or its source to any third-party
 internet service (VirusTotal, AV vendors, pastebins, etc.). Only destination

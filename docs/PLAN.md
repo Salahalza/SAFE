@@ -73,13 +73,25 @@ TUI for collection and viewing.
 **Goal:** Expand collection coverage beyond rapid_triage.
 
 **Modules to build:**
-- `process_memory_inspection` — Targeted process memory regions
-- `extended_event_channels` — Bulk-collect full winevt/Logs
-- `extended_persistence` — BAM/DAM, COM hijacks, more service registries
+- `process_memory_inspection` — Per-process memory regions — **DONE**
+  (collect-only; 2026-06-12f). Dumps exec/RWX-private regions; analysis is
+  lab-side.
+- `extended_event_channels` — Bulk-collect full winevt/Logs — **DONE**
+  (2026-06-12d).
+- `extended_persistence` — BAM/DAM, service registries, ASEPs — **DONE**
+  (2026-06-12d). COM hijacks + WMI deferred to lab-side parsing (Phase 4).
 
-**Profile updates:** `endpoint_deep` profile gets defined.
+**Profile updates:** `endpoint_deep` defined (v0.3.0) and a dedicated LOUD
+`memory_triage` profile added — **DONE** (2026-06-12f).
 
 **Estimated effort:** 6-10 Claude Code sessions.
+
+### Status: COLLECTION COMPLETE (2026-06-12f)
+
+All Phase 2 collection modules are built and VM-verified. The remaining
+Phase-2-scoped items are lab-side analyzers — the `process_memory` analyzer (for
+the PMI dumps), the COM-hijack hive-parser, and WMI surfacing — which carry into
+Phase 4 (Parser Expansion). The next *collection* phase is Phase 3.
 
 ---
 

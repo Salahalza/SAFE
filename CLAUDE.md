@@ -438,16 +438,22 @@ safe/
 
 ### Profile status
 
-- **rapid_triage** (v0.2.0) — BUILT
-- **endpoint_deep** — PLANNED (Phase 2)
+- **rapid_triage** (v0.2.0) — BUILT (9 modules)
+- **endpoint_deep** (v0.3.0) — BUILT (rapid_triage superset + process_memory_inspection + extended_persistence + extended_event_channels)
+- **memory_triage** (v0.1.0) — BUILT (dedicated LOUD profile: process_snapshot + process_memory_inspection)
 - **domain_controller** — PLANNED (Phase 9)
 - **server_role** — PLANNED (Phase 9)
+
+12 collection modules built; 2 analyzer parsers (UserAssist, Prefetch).
 
 ### Phase status
 
 - **Phase 1** — COMPLETE
-- **Phase 2** — NEXT
-- **Phases 3-12** — PLANNED (see docs/PLAN.md)
+- **Phase 2** (Extended Collection) — collection work COMPLETE (2026-06-12f):
+  all three modules built + VM-verified. Deferred lab-side items (process_memory
+  analyzer, COM-hijack parser, WMI surfacing) carry into Phase 4.
+- **Phase 3** (Browser + Per-User) — NEXT collection phase
+- **Phases 4-12** — PLANNED (see docs/PLAN.md)
 
 ---
 

@@ -102,7 +102,7 @@ produces parsed CSVs in a `lab_report/` subdirectory. See "Design Principle
 
 ## Profile 2: endpoint_deep
 
-**Status:** In design. Building now.
+**Status:** Built (v0.3.0). EDR-visible (it reads process memory).
 
 **Use when:** You've decided this workstation or single-purpose server needs
 detailed investigation. Replaces the traditional "Triage" step in your
@@ -113,24 +113,55 @@ captures, plus live process memory inspection and extended artifact coverage.
 
 **Runtime:** Estimated 2-5 minutes depending on process count and event log size.
 
-**Modules (planned, in build order):**
-- All rapid_triage modules
-- process_memory_inspection
-- full_event_logs (entire winevt/Logs directory)
-- extended_persistence (COM hijacking, LSA packages, Office, etc.)
-- jumplists_collection (per user)
-- lnkfiles_collection (Recent folders, per user)
-- browser_artifacts (Chrome, Edge, Firefox, IE Legacy)
-- shimcache_parsing
-- mft_extraction (raw NTFS)
-- usn_journal_extraction (raw NTFS)
-- ntfs_metadata (LogFile, Boot, Bitmap, Secure)
+**Modules (in execution order, order-of-volatility preserved):**
+1. process_snapshot
+2. process_memory_inspection *(new in v0.3.0 — most volatile, runs right after
+   the process list that names its PIDs)*
+3. network_snapshot
+4. system_metadata
+5. eventlogs_core
+6. registry_core
+7. persistence_core
+8. extended_persistence
+9. amcache_collection
+10. user_hives_collection
+11. prefetch_collection
+12. extended_event_channels
 
-**Build status:** Module-by-module. First addition is process_memory_inspection.
+**Build status:** Built and VM-verified (2026-06-12f). All 12 modules report
+success on the VM. 75-minute total budget (server-headroom).
+
+**Still planned for later phases** (not yet in the profile): browser_artifacts,
+jump_lists, lnk files (Phase 3); $MFT / USN journal / NTFS metadata (Phase 4+).
 
 ---
 
-## Profile 3: domain_controller
+## Profile 3: memory_triage
+
+**Status:** Built (v0.1.0). LOUD / EDR-visible by design.
+
+**Use when:** You specifically want per-process memory capture as a deliberate,
+focused act — separate from the broader endpoint_deep sweep — knowing it is
+EDR-visible and may be flagged or blocked.
+
+**Goal:** Capture user-mode process memory (injected / unbacked executable
+code) with the minimum surrounding collection needed to correlate it.
+
+**Modules (in execution order):**
+1. process_snapshot *(grounds the PID list)*
+2. process_memory_inspection *(collect-only: dumps committed, private,
+   exec/RWX regions; all triage happens lab-side)*
+
+**Build status:** Built and VM-verified (2026-06-12f). 35-minute total budget.
+
+**Note:** process_memory_inspection is opt-in only — it lives here and in
+endpoint_deep, never in rapid_triage. It reads process memory via
+OpenProcess/ReadProcessMemory, which EDR hooks; protected/PPL/system processes
+will be undumpable, which is expected.
+
+---
+
+## Profile 4: domain_controller
 
 **Status:** Planned. Build after endpoint_deep is solid.
 
@@ -160,7 +191,7 @@ AD internals.
 
 ---
 
-## Profile 4: server_role
+## Profile 5: server_role
 
 **Status:** Planned. Build after domain_controller.
 
@@ -247,7 +278,8 @@ When an analyst is deciding which profile to run, the questions are:
 
 3. **Special considerations:**
    - Suspected memory-resident malware → endpoint_deep (memory inspection
-     included) plus possibly an external memory dump
+     included), or memory_triage for a focused memory-only capture, plus
+     possibly an external memory dump. Note both are EDR-visible.
    - Legal chain-of-custody required → use FTK Imager for full disk;
      SAFE provides the live evidence FTK can't
    - Multi-target deployment scenario → run rapid_triage on all targets
@@ -257,11 +289,13 @@ When an analyst is deciding which profile to run, the questions are:
 
 ## Build Sequence and Timeline
 
-1. **Now (May–June 2026):** endpoint_deep, starting with process_memory_inspection
-   module. Add extended modules over multiple sessions.
+1. **May–June 2026 — DONE (2026-06-12f):** endpoint_deep (v0.3.0) built with all
+   extended collection modules (process_memory_inspection, extended_persistence,
+   extended_event_channels); dedicated memory_triage profile (v0.1.0) added.
 
-2. **June–July 2026:** Complete endpoint_deep. Pilot internally on workstation
-   cases.
+2. **June–July 2026:** Pilot endpoint_deep internally on workstation cases;
+   build the lab-side analyzers for the new modules (process_memory, COM-hijack
+   hive-parser).
 
 3. **July–August 2026:** domain_controller profile. Highest risk piece due to
    AD complexity. Test against an isolated DC in a test forest.
