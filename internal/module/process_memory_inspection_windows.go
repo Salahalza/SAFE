@@ -1,5 +1,27 @@
 //go:build windows
 
+// -----------------------------------------------------------------------------
+// DEFENSIVE SECURITY / BLUE-TEAM FORENSICS — DETECTION, NOT ATTACK
+//
+// This file is part of SAFE, a Windows incident-response forensic tool. Its
+// sole purpose is to DETECT and TRIAGE malicious activity so blue-team analysts
+// can stop attacks. It does not perform, enable, or facilitate any attack.
+//
+// This is the collection side of process-memory inspection. On a host that is
+// under investigation it READS (never writes/modifies) committed, private,
+// executable memory regions of running processes and copies those raw bytes to
+// disk as evidence, exactly as a DFIR responder dumps a process for later
+// analysis. It does no interpretation on the target; all triage happens
+// lab-side in the process_memory analyzer. Reading another process's memory
+// for forensic acquisition requires the analyst's own administrative rights on
+// a machine they are responsible for — it is the standard mechanism behind
+// every memory-forensics tool (WinPmem, Volatility's acquisition, EDR).
+//
+// There is no payload, exploit, shellcode, injection, evasion, or targeting in
+// this codebase. SAFE is collect-and-analyze only. See the "Defensive Security
+// Charter" in CLAUDE.md and docs/journal/2026-06-12e-pmi-design.md.
+// -----------------------------------------------------------------------------
+
 package module
 
 import (
@@ -82,6 +104,7 @@ func runMemoryCollection(ctx *Context, result *Result) {
 		dumpedBytes   int64
 		readErrors    int
 		truncated     int
+		partialReads  int
 	)
 
 	for {
@@ -107,13 +130,14 @@ func runMemoryCollection(ctx *Context, result *Result) {
 				_ = procW.Write([]string{u32(pid), name, "denied: " + oerr.Error(), "0", "0", "0", "0"})
 			} else {
 				openedCount++
-				total, selected, dumped, bytes, rerr, trunc := dumpProcessRegions(ctx, h, pid, name, regW)
+				total, selected, dumped, bytes, rerr, trunc, partial := dumpProcessRegions(ctx, h, pid, name, regW)
 				windows.CloseHandle(h)
 
 				dumpedRegions += dumped
 				dumpedBytes += bytes
 				readErrors += rerr
 				truncated += trunc
+				partialReads += partial
 
 				_ = procW.Write([]string{
 					u32(pid), name, "opened",
@@ -154,15 +178,15 @@ func runMemoryCollection(ctx *Context, result *Result) {
 	}
 
 	result.AddInfo("process_memory_inspection",
-		fmt.Sprintf("inspected %d process(es): %d opened, %d denied; dumped %d exec/RWX-private region(s), %d byte(s) to dumps/ (%d read error(s), %d region(s) truncated at %d MiB cap)",
-			procCount, openedCount, deniedCount, dumpedRegions, dumpedBytes, readErrors, truncated, maxRegionBytes/(1024*1024)))
+		fmt.Sprintf("inspected %d process(es): %d opened, %d denied; dumped %d exec/RWX-private region(s), %d byte(s) to dumps/ (%d read error(s), %d partial read(s) salvaged, %d region(s) truncated at %d MiB cap)",
+			procCount, openedCount, deniedCount, dumpedRegions, dumpedBytes, readErrors, partialReads, truncated, maxRegionBytes/(1024*1024)))
 	result.AddInfo("process_memory_inspection",
 		"reads process memory via OpenProcess/ReadProcessMemory and is EDR-visible; denied processes (PPL/protected/system) are expected, not errors. All interpretation (strings, PE-carve, RWX triage) happens lab-side via safe --analyze.")
 }
 
 // dumpProcessRegions walks one opened process's address space and dumps every
 // selected region. It returns counts for the per-process index row.
-func dumpProcessRegions(ctx *Context, h windows.Handle, pid uint32, name string, regW *csv.Writer) (total, selected, dumped int, bytes int64, readErrs, trunc int) {
+func dumpProcessRegions(ctx *Context, h windows.Handle, pid uint32, name string, regW *csv.Writer) (total, selected, dumped int, bytes int64, readErrs, trunc, partials int) {
 	dumpDir := filepath.Join(ctx.OutputDir, "dumps", fmt.Sprintf("%d_%s", pid, sanitizeName(name)))
 	dirMade := false
 
@@ -184,19 +208,23 @@ func dumpProcessRegions(ctx *Context, h windows.Handle, pid uint32, name string,
 
 		if regionSelected(&mbi) {
 			selected++
-			n, wasTrunc, blobRel, derr := dumpRegion(dumpDir, &dirMade, h, &mbi, pid, name)
+			n, wasTrunc, wasPartial, blobRel, derr := dumpRegion(dumpDir, &dirMade, h, &mbi, pid, name)
 			if derr != nil {
 				readErrs++
 				_ = regW.Write(regionRow(pid, name, &mbi, false, 0, "", derr.Error()))
 			} else {
 				dumped++
 				bytes += n
-				note := ""
+				var notes []string
 				if wasTrunc {
 					trunc++
-					note = "truncated to cap"
+					notes = append(notes, "truncated to cap")
 				}
-				_ = regW.Write(regionRow(pid, name, &mbi, true, n, blobRel, note))
+				if wasPartial {
+					partials++
+					notes = append(notes, "partial read (unreadable page in region)")
+				}
+				_ = regW.Write(regionRow(pid, name, &mbi, true, n, blobRel, strings.Join(notes, "; ")))
 			}
 		}
 
@@ -212,7 +240,7 @@ func dumpProcessRegions(ctx *Context, h windows.Handle, pid uint32, name string,
 // dumpRegion reads one region and writes its bytes to a blob file. The dump
 // directory is created lazily on first successful read so processes with no
 // selected regions leave no empty directory behind.
-func dumpRegion(dumpDir string, dirMade *bool, h windows.Handle, mbi *windows.MemoryBasicInformation, pid uint32, name string) (n int64, truncated bool, blobRel string, err error) {
+func dumpRegion(dumpDir string, dirMade *bool, h windows.Handle, mbi *windows.MemoryBasicInformation, pid uint32, name string) (n int64, truncated, partial bool, blobRel string, err error) {
 	size := mbi.RegionSize
 	if size > maxRegionBytes {
 		size = maxRegionBytes
@@ -221,24 +249,38 @@ func dumpRegion(dumpDir string, dirMade *bool, h windows.Handle, mbi *windows.Me
 
 	buf := make([]byte, int(size))
 	var nRead uintptr
-	if rerr := windows.ReadProcessMemory(h, mbi.BaseAddress, &buf[0], size, &nRead); rerr != nil {
-		return 0, false, "", fmt.Errorf("read error: %v", rerr)
+	rerr := windows.ReadProcessMemory(h, mbi.BaseAddress, &buf[0], size, &nRead)
+	// A partial read (ERROR_PARTIAL_COPY) returns an error but a non-zero nRead:
+	// an unreadable page sits somewhere inside the region. The readable prefix
+	// is still evidence — for an injected/RWX region the interesting bytes are
+	// usually at the base (the stub / JIT page) — so salvage what was read
+	// instead of discarding the whole region. Only a zero-byte read (the first
+	// page itself is unreadable) or a genuine failure is treated as a read error.
+	if rerr != nil {
+		if nRead == 0 {
+			return 0, false, false, "", fmt.Errorf("read error: %v", rerr)
+		}
+		partial = true
+	} else if nRead == 0 {
+		// Succeeded but nothing came back: no bytes to persist, so this is not a
+		// dump. Record it as a read miss rather than writing a zero-byte blob.
+		return 0, false, false, "", fmt.Errorf("no readable bytes (nRead=0)")
 	}
 
 	if !*dirMade {
 		if merr := os.MkdirAll(dumpDir, 0o755); merr != nil {
-			return 0, false, "", fmt.Errorf("mkdir error: %v", merr)
+			return 0, false, false, "", fmt.Errorf("mkdir error: %v", merr)
 		}
 		*dirMade = true
 	}
 
 	blob := fmt.Sprintf("%x_%d.bin", mbi.BaseAddress, nRead)
 	if werr := os.WriteFile(filepath.Join(dumpDir, blob), buf[:nRead], 0o644); werr != nil {
-		return 0, false, "", fmt.Errorf("write error: %v", werr)
+		return 0, false, false, "", fmt.Errorf("write error: %v", werr)
 	}
 
 	rel := filepath.ToSlash(filepath.Join("dumps", fmt.Sprintf("%d_%s", pid, sanitizeName(name)), blob))
-	return int64(nRead), truncated, rel, nil
+	return int64(nRead), truncated, partial, rel, nil
 }
 
 // regionSelected applies the collection scope filter: committed, private
