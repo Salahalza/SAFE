@@ -1,6 +1,6 @@
 # SESSION HANDOFF
 
-Last updated: 2026-06-12 (session 2026-06-12f)
+Last updated: 2026-06-12 (session 2026-06-12g)
 Last assistant: Claude Code (VSCode)
 
 This document captures the current state of the project, what's in flight,
@@ -43,7 +43,9 @@ Per-User). See "Phase 2 status" below.
 - 12 collection modules: process, network, system metadata, event logs,
   registry, persistence, amcache, user hives, prefetch, extended event
   channels, extended persistence, process memory inspection
-- 2 analyzer parsers: UserAssist, Prefetch
+- 4 analyzer parsers: UserAssist, Prefetch, process_memory, com_hijack
+- Live data-driven progress bars (collection within-module by files/bytes;
+  analysis within-parser), TUI (solid bars) and CLI (ASCII bars)
 - Block-letter SAFE banner on welcome screen
 
 **What's broken or ugly:**
@@ -72,23 +74,24 @@ tracking.
    (v0.3.0); never in rapid_triage. First module to use native Windows syscalls
    (build-tagged `_windows.go`/`_other.go`).
 
-**Deferred to LAB-SIDE work (Phase 4, Parser Expansion) — not collection:**
-- `process_memory` analyzer — strings / PE-carve / RWX triage over the PMI
-  dumps. This is the other half of the collect-only PMI design.
-- COM-hijack hive-parser — per-user CLSID isn't reachable via on-target reg
-  query; parse the already-collected SOFTWARE/NTUSER hives in lab.
-- WMI-subscription surfacing — parse the WMI repository in lab.
+**Lab-side work — status (2026-06-12g):**
+- `process_memory` analyzer — **DONE** (commit 32601b6). Strings / PE-carve /
+  RWX triage over the PMI dumps. The other half of the collect-only PMI design.
+- COM-hijack hive-parser (`com_hijack`) — **DONE** (commit 38bf58b). Parses each
+  user's UsrClass.dat (NOT NTUSER.DAT — that has no CLSID surface), HKLM SOFTWARE
+  as a shadow oracle. Regression fixture: `test-fixtures/com_hijack_planted/`
+  (see docs/test-fixtures.md).
+- WMI-subscription surfacing — **still deferred** (Phase 4). Parse the WMI
+  repository in lab.
 
 ## Immediate Next Steps
 
 **Pick next:**
-- **Lab `process_memory` analyzer** (recommended — completes the PMI feature
-  loop): a Parser globbing `modules/*_process_memory_inspection`, reading
-  `regions.csv` + the `dumps/` blobs, emitting strings / PE-carve / RWX-triage
-  findings into lab_report/. All the on-target judgement PMI deliberately skips.
-- **COM lab hive-parser** — the other deferred lab analyzer.
 - **Begin Phase 3 (Browser + Per-User)** — the next *collection* phase
   (per_user_iteration infra, browser_artifacts, jump_lists). See ROADMAP 3.x.
+- **WMI-subscription lab parser** — the last deferred Phase 2 lab item.
+- Optional: a quick VM `--analyze` glance at the analysis progress bar (the
+  com_hijack within-parser milestones during its ~13s); display-only.
 
 Note: MODULES_REFERENCE.md was brought fully current 2026-06-12f — title fixed
 (SAFE), all 12 collection modules documented, profile-membership matrix and
