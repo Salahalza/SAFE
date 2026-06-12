@@ -463,3 +463,33 @@ profile (endpoint_deep) existed.
 - Known follow-up: the confirm, complete, and analyze-complete summary
   screens can still clip on very short terminals; the same viewport pattern
   will be extended to them.
+
+
+## 2026-06-12 — extended_persistence module
+
+Second Phase 2 collection module, added to `endpoint_deep` (now v0.2.0).
+
+- New module `extended_persistence`: 15 readable `reg query` snapshots of
+  Auto-Start Extensibility Points (ASEPs) that `persistence_core` does not
+  cover — BAM/DAM execution evidence, the full service registry tree
+  (ServiceDll/ImagePath/FailureCommand hijack vectors), LSA and
+  SecurityProviders, Session Manager (BootExecute/KnownDLLs/AppCertDlls),
+  Netsh helpers, Print monitors, Time providers, full Winlogon, Active
+  Setup, Shell Extensions Approved, and Browser Helper Objects (+ Wow64).
+- Reuses `persistence_core`'s `queryRunKey` helper, so absent keys (e.g.
+  legacy BAM, DAM on workstations) are classified as info findings, not
+  errors — a clean host does not produce a degraded status.
+- No new raw data: registry_core already saves the SYSTEM/SOFTWARE hives
+  and user_hives_collection the NTUSER hives, so these are human-readable
+  triage snapshots over data already collected (the same deliberate overlap
+  as extended_event_channels vs. eventlogs_core). COM hijacks are
+  deliberately deferred to a future lab hive-parser (per-user CLSID is not
+  reachable via on-target reg query); a finding records this.
+- Runs in the static registry/persistence tier (order of volatility), right
+  after persistence_core; Priority normal, 5-minute budget.
+- Verified end-to-end on the Windows 11 VM: status=success, 15 artifacts,
+  0 errors, ~15s; BAM captured real per-SID execution evidence (28
+  executables with FILETIME blobs); `safe --verify` passes (635 files).
+- AV note: this module's persistence enumeration escalates the Defender ML
+  false positive to `Trojan:Win32/Bearfoos.A!ml` (Severe). Documented in
+  docs/LIMITATIONS.md; the flagged run still completed and verified.

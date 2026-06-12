@@ -134,11 +134,28 @@ heuristic AV engines: registry hive copies, VSS shadow creation, process
 enumeration, persistence location enumeration. This is unavoidable —
 the same behaviors that make SAFE useful for IR also trigger AV ML models.
 
-Expect false-positive detections, particularly:
-- Microsoft Defender ML (categories like "Settings Modifier")
-- Heuristic detections by enterprise AV on first deployment
+Observed false-positive detections on Microsoft Defender ML:
+- `Program:Win32/Contebrew.A!ml` — category "Settings Modifier".
+- `Trojan:Win32/Bearfoos.A!ml` — category "Trojan", alert level Severe.
+  First seen 2026-06-12 after the `extended_persistence` module landed. Its
+  rapid `reg query` enumeration of BAM, services, LSA, and other ASEPs is
+  behaviorally identical to malware reconnaissance, which escalates the ML
+  verdict from "Settings Modifier" to "Trojan". Still a false positive (it
+  is SAFE's own collection logic) — just a louder one.
+
+Both are false positives. The flagged collection still completes and the
+case output verifies cleanly: a flagged `endpoint_deep` run on 2026-06-12
+produced 635 files, all hashes matching `safe --verify`.
 
 Deployment recommendations:
-- Add SAFE's installation path to AV exclusions before use
+- Add SAFE's installation path to AV exclusions before use.
 - For long-term deployment, sign safe.exe with an authenticode certificate
-- Submit to Microsoft and major AV vendors for whitelisting (Phase 8)
+  (planned Phase 12).
+
+Do NOT submit safe.exe or its source to VirusTotal, Microsoft, AV vendors,
+or any other third-party service for analysis or whitelisting. SAFE is kept
+fully isolated from the internet except its own private GitHub repository —
+see the operational-security rule in CLAUDE.md. Any whitelisting, if ever
+pursued, happens only through channels the project owner explicitly
+controls; the binary and source are never uploaded to a public or
+third-party scanner.
