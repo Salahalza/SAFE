@@ -52,7 +52,7 @@ The template has seven sections:
 4. What got punted — items deferred, with where they're tracked
 5. What surprised us — bugs, library quirks, unexpected difficulty
 6. What's next — entry point for the next session
-7. Notes for future Claude — explicit "don't re-litigate" guidance
+7. Notes for the next session — explicit "don't re-litigate" guidance
 
 ### When to write
 

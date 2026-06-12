@@ -95,7 +95,7 @@ TUI report viewer, plus end-to-end test of the analyze flow.
 See docs/MIGRATION_PLAN.md for the full first-three-sessions plan.
 See docs/ROADMAP.md for Phase 2 onward.
 
-## Notes for future Claude
+## Notes for the next session
 
 - Do NOT suggest rebasing the duplicate TUI commits (6457ef9, 565b23b).
   Decision made.

@@ -46,7 +46,7 @@ If nothing notable, write: "Nothing notable."
 One or two lines: the immediate next step. This becomes the entry point
 for the next session.
 
-## Notes for future Claude
+## Notes for the next session
 
 Anything a future session should know to avoid re-litigating decisions
 or repeating mistakes.
