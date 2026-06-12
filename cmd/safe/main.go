@@ -562,7 +562,16 @@ func runAnalyzer(caseDir string) {
 	registry.Register(&analyzer.ProcessMemoryParser{})
 	registry.Register(&analyzer.ComHijackParser{})
 
-	result, err := analyzer.Run(caseDir, registry.All())
+	lastLabel := ""
+	onProgress := func(frac float64, label string) {
+		// Print a bar line when the parser changes (append-only CLI; the
+		// fraction streams finely but per-parser lines keep the output clean).
+		if label != "" && label != lastLabel {
+			lastLabel = label
+			fmt.Printf("%s  %s\n", engine.ASCIIBar(int(frac*100), 100, 20), label)
+		}
+	}
+	result, err := analyzer.RunWithProgress(caseDir, registry.All(), onProgress)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Analyzer failed: %v\n", err)
 		os.Exit(2)
@@ -598,11 +607,11 @@ func runAnalyzer(caseDir string) {
 
 // runAnalyzerFromTUI is the analyzer entry point passed to the TUI. It
 // wraps the same analyzer infrastructure used by the --analyze CLI flag.
-func runAnalyzerFromTUI(caseDir string) (*analyzer.Result, error) {
+func runAnalyzerFromTUI(caseDir string, onProgress func(frac float64, label string)) (*analyzer.Result, error) {
 	registry := analyzer.NewRegistry()
 	registry.Register(&analyzer.UserAssistParser{})
 	registry.Register(&analyzer.PrefetchParser{})
 	registry.Register(&analyzer.ProcessMemoryParser{})
 	registry.Register(&analyzer.ComHijackParser{})
-	return analyzer.Run(caseDir, registry.All())
+	return analyzer.RunWithProgress(caseDir, registry.All(), onProgress)
 }

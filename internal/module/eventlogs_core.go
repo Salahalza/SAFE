@@ -46,7 +46,12 @@ func (m *EventLogsCore) Run(ctx *Context) Result {
 			Args:     []string{"epl", channel, "{OUTPUT}"},
 		})
 	}
-	runDirectOutputCommands(ctx.Ctx, ctx.OutputDir, coreCommands, &result)
+	runDirectOutputCommands(ctx, coreCommands, &result)
+
+	// Optional channels run one-at-a-time below; reporting progress per single
+	// command would flicker the bar 0→100% each iteration, so give these a
+	// progress-less context (the core batch above carries the module's bar).
+	optCtx := &Context{OutputDir: ctx.OutputDir, Ctx: ctx.Ctx, Shadow: ctx.Shadow}
 
 	for _, channel := range optionalChannels {
 		filename := channelToFilename(channel)
@@ -55,7 +60,7 @@ func (m *EventLogsCore) Run(ctx *Context) Result {
 			Errors:    []string{},
 			Findings:  []Finding{},
 		}
-		runDirectOutputCommands(ctx.Ctx, ctx.OutputDir, []DirectCommand{{
+		runDirectOutputCommands(optCtx, []DirectCommand{{
 			Filename: filename,
 			Name:     "wevtutil",
 			Args:     []string{"epl", channel, "{OUTPUT}"},

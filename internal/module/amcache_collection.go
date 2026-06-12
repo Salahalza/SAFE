@@ -47,8 +47,11 @@ func (m *AmcacheCollection) Run(ctx *Context) Result {
 	}
 
 	mainHiveFound := false
+	var amBytes int64
 
-	for _, name := range files {
+	for i, name := range files {
+		ctx.ReportProgress(i, len(files), amBytes)
+
 		srcPath := filepath.Join(ctx.Shadow.MountedPath, amcacheDir, name)
 		dstPath := filepath.Join(ctx.OutputDir, name)
 
@@ -83,11 +86,13 @@ func (m *AmcacheCollection) Run(ctx *Context) Result {
 		artifact.SourceSize = info.Size()
 
 		result.Artifacts = append(result.Artifacts, artifact)
+		amBytes += info.Size()
 
 		if name == "Amcache.hve" {
 			mainHiveFound = true
 		}
 	}
+	ctx.ReportProgress(len(files), len(files), amBytes)
 
 	if !mainHiveFound {
 		result.AddWarning("amcache_collection",

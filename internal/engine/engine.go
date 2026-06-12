@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"safe/internal/manifest"
@@ -11,6 +12,30 @@ import (
 	"safe/internal/profile"
 	"safe/internal/vss"
 )
+
+// ASCIIBar renders a fixed-width ASCII progress bar with a trailing percentage,
+// e.g. "[######--------------]  30%". ASCII-only (no Unicode blocks) so it
+// renders correctly on plain Windows PowerShell, matching the TUI's ASCII
+// status markers. Shared by the CLI collection output, the TUI collection and
+// analyze screens, and the CLI analyzer so every progress display looks alike.
+func ASCIIBar(done, total, width int) string {
+	if total <= 0 {
+		total = 1
+	}
+	if done < 0 {
+		done = 0
+	}
+	if done > total {
+		done = total
+	}
+	frac := float64(done) / float64(total)
+	filled := int(frac*float64(width) + 0.5)
+	if filled > width {
+		filled = width
+	}
+	pct := int(frac*100 + 0.5)
+	return fmt.Sprintf("[%s%s] %3d%%", strings.Repeat("#", filled), strings.Repeat("-", width-filled), pct)
+}
 
 type Engine struct {
 	CaseDir string
@@ -28,6 +53,13 @@ type ProgressEvent struct {
 	Result      module.Result
 	Duration    time.Duration
 	Status      string
+
+	// Intra-module progress (Kind == EventModuleProgress): SubDone/SubTotal are
+	// work units processed within the current module (files or commands);
+	// SubBytes is cumulative bytes written so far by this module.
+	SubDone  int
+	SubTotal int
+	SubBytes int64
 }
 
 type EventKind int
@@ -35,6 +67,7 @@ type EventKind int
 const (
 	EventCaseStart EventKind = iota
 	EventModuleStart
+	EventModuleProgress
 	EventModuleDone
 	EventCaseDone
 )
@@ -113,8 +146,8 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 				ModuleName:  m.Name(),
 				TotalCount:  len(p.Modules),
 			},
-			fmt.Sprintf("[%d/%d] Running module: %s (priority=%s, budget=%s)\n",
-				i+1, len(p.Modules), m.Name(), m.Priority(), m.TimeBudget()),
+			fmt.Sprintf("%s  [%d/%d] Running module: %s (priority=%s, budget=%s)\n",
+				ASCIIBar(i, len(p.Modules), 20), i+1, len(p.Modules), m.Name(), m.Priority(), m.TimeBudget()),
 		)
 
 		// If this module requires VSS but shadow creation failed, skip it
@@ -155,10 +188,35 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 
 		modCtx, modCancel := context.WithTimeout(profileCtx, m.TimeBudget())
 
+		// Intra-module progress reporter. Forwards file/byte progress to the UI,
+		// time-throttled so a module copying thousands of files doesn't flood
+		// the channel; the final (done==total) report always goes through so the
+		// bar completes the module. CLI mode (ProgressCh nil) prints nothing for
+		// these — the per-module step bar already covers it.
+		idx, total := i, len(p.Modules)
+		var lastEmit time.Time
+		progressFn := func(done, subTotal int, bytes int64) {
+			now := time.Now()
+			if done < subTotal && now.Sub(lastEmit) < 60*time.Millisecond {
+				return
+			}
+			lastEmit = now
+			e.emitOrPrint(ProgressEvent{
+				Kind:        EventModuleProgress,
+				ModuleIndex: idx,
+				ModuleName:  m.Name(),
+				TotalCount:  total,
+				SubDone:     done,
+				SubTotal:    subTotal,
+				SubBytes:    bytes,
+			}, "")
+		}
+
 		ctx := &module.Context{
 			OutputDir: moduleDir,
 			Ctx:       modCtx,
 			Shadow:    sharedShadow,
+			Progress:  progressFn,
 		}
 
 		modResult := runModuleWithWatchdog(m, ctx, m.TimeBudget())

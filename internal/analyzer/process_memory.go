@@ -86,7 +86,7 @@ type triagedRegion struct {
 	analysisNote string
 }
 
-func (p *ProcessMemoryParser) Parse(caseDir, labReportDir string) ([]string, ParseStats, []error) {
+func (p *ProcessMemoryParser) Parse(caseDir, labReportDir string, report ProgressFunc) ([]string, ParseStats, []error) {
 	stats := ParseStats{}
 
 	// Locate the process_memory_inspection module output directory.
@@ -118,7 +118,10 @@ func (p *ProcessMemoryParser) Parse(caseDir, labReportDir string) ([]string, Par
 	var errs []error
 	var triaged []triagedRegion
 
-	for _, r := range regions {
+	for i, r := range regions {
+		if report != nil {
+			report(i, len(regions))
+		}
 		if !r.dumped || r.blobPath == "" {
 			// A region the module recorded but could not read (read error). It
 			// still belongs in the triage index, just with no analysis.

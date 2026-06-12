@@ -37,8 +37,10 @@ func (f runnerFunc) Run(c *casemeta.Case, p *profile.Profile, progressCh chan<- 
 	return f(c, p, progressCh)
 }
 
-// AnalyzerRunner is what the TUI uses to run analysis on a case folder.
-type AnalyzerRunner func(caseDir string) (*analyzer.Result, error)
+// AnalyzerRunner is what the TUI uses to run analysis on a case folder. The
+// onProgress callback streams an overall 0..1 fraction and the current parser's
+// name so the TUI can render a live progress bar that advances within parsers.
+type AnalyzerRunner func(caseDir string, onProgress func(frac float64, label string)) (*analyzer.Result, error)
 
 // RunWithCollection launches the TUI and runs collection inside it.
 // This is the entry point invoked by main.go when --tui is passed.
@@ -112,6 +114,16 @@ type analyzeFinishedMsg struct {
 	err    error
 }
 
+// analyzeProgressEvent reports the analyzer's overall progress fraction and the
+// current parser's name.
+type analyzeProgressEvent struct {
+	frac  float64
+	label string // current parser; "" on the final (100%) event
+}
+
+// analyzeProgressMsg flows an analyzeProgressEvent through tea.Msg.
+type analyzeProgressMsg analyzeProgressEvent
+
 // reportLoadedMsg carries the loaded and parsed report data.
 type reportLoadedMsg struct {
 	data *reportData
@@ -143,12 +155,15 @@ type model struct {
 	welcomeCursor welcomeChoice
 
 	// Analyzer state
-	analyzeFn       AnalyzerRunner
-	analyzePicker   filepicker.Model
-	analyzeCaseDir  string
-	analyzeResult   *analyzer.Result
-	analyzeErr      error
-	analyzeSpinTick int
+	analyzeFn         AnalyzerRunner
+	analyzePicker     filepicker.Model
+	analyzeCaseDir    string
+	analyzeResult     *analyzer.Result
+	analyzeErr        error
+	analyzeSpinTick   int
+	analyzeProgressCh chan analyzeProgressEvent
+	analyzeFrac       float64
+	analyzeLabel      string
 
 	// Report viewer state
 	reportPicker   filepicker.Model
@@ -256,6 +271,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case progressEventMsg:
 		m.progress.applyEvent(engine.ProgressEvent(ev))
 		return m, listenForProgress(m.progressCh)
+	case analyzeProgressMsg:
+		m.analyzeFrac = ev.frac
+		m.analyzeLabel = ev.label
+		return m, listenForAnalyzeProgress(m.analyzeProgressCh)
 	case progressTickMsg:
 		if m.screen == screenProgress {
 			m.progress.spinnerTick++
@@ -425,18 +444,56 @@ func (m *model) startCollectionCmd() tea.Cmd {
 	)
 }
 
-// startAnalyzeCmd kicks off the analyzer against the chosen case folder.
+// startAnalyzeCmd kicks off the analyzer against the chosen case folder. It
+// runs the analyzer in a goroutine that streams parser-by-parser progress over
+// a channel (mirroring the collection flow) so the analyze screen can show a
+// live progress bar — parsers like com_hijack take several seconds on a large
+// hive.
 func (m *model) startAnalyzeCmd() tea.Cmd {
 	caseDir := m.analyzeCaseDir
 	analyzeFn := m.analyzeFn
 
+	m.analyzeFrac = 0
+	m.analyzeLabel = ""
+	m.analyzeProgressCh = make(chan analyzeProgressEvent, 16)
+	ch := m.analyzeProgressCh
+	resultCh := make(chan analyzeFinishedMsg, 1)
+
+	go func() {
+		cb := func(frac float64, label string) {
+			ch <- analyzeProgressEvent{frac: frac, label: label}
+		}
+		result, err := analyzeFn(caseDir, cb)
+		close(ch)
+		resultCh <- analyzeFinishedMsg{result: result, err: err}
+		close(resultCh)
+	}()
+
 	return tea.Batch(
-		func() tea.Msg {
-			result, err := analyzeFn(caseDir)
-			return analyzeFinishedMsg{result: result, err: err}
-		},
+		listenForAnalyzeProgress(ch),
+		waitForAnalyzeResult(resultCh),
 		tickEvery(100*time.Millisecond),
 	)
+}
+
+func listenForAnalyzeProgress(ch <-chan analyzeProgressEvent) tea.Cmd {
+	return func() tea.Msg {
+		ev, ok := <-ch
+		if !ok {
+			return progressDoneMsg{}
+		}
+		return analyzeProgressMsg(ev)
+	}
+}
+
+func waitForAnalyzeResult(ch <-chan analyzeFinishedMsg) tea.Cmd {
+	return func() tea.Msg {
+		msg, ok := <-ch
+		if !ok {
+			return analyzeFinishedMsg{}
+		}
+		return msg
+	}
 }
 
 func listenForProgress(ch <-chan engine.ProgressEvent) tea.Cmd {

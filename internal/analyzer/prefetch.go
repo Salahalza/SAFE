@@ -25,7 +25,7 @@ type PrefetchParser struct{}
 
 func (p *PrefetchParser) Name() string { return "prefetch" }
 
-func (p *PrefetchParser) Parse(caseDir, labReportDir string) ([]string, ParseStats, []error) {
+func (p *PrefetchParser) Parse(caseDir, labReportDir string, report ProgressFunc) ([]string, ParseStats, []error) {
 	stats := ParseStats{}
 
 	// Locate the prefetch_collection module output directory in the case.
@@ -60,7 +60,10 @@ func (p *PrefetchParser) Parse(caseDir, labReportDir string) ([]string, ParseSta
 	parsedCount := 0
 	skippedCount := 0
 
-	for _, entry := range entries {
+	for i, entry := range entries {
+		if report != nil {
+			report(i, len(entries))
+		}
 		if entry.IsDir() {
 			continue
 		}

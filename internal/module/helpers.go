@@ -90,14 +90,18 @@ func runOne(ctx context.Context, name string, args []string, outPath string) err
 	return os.WriteFile(outPath, out, 0o644)
 }
 
-func runDirectOutputCommands(ctx context.Context, outputDir string, commands []DirectCommand, result *Result) {
-	for _, c := range commands {
-		if ctx.Err() != nil {
+func runDirectOutputCommands(mctx *Context, commands []DirectCommand, result *Result) {
+	var bytes int64
+	for i, c := range commands {
+		// Report intra-module progress (commands run / total, bytes produced).
+		mctx.ReportProgress(i, len(commands), bytes)
+
+		if mctx.Ctx.Err() != nil {
 			result.Errors = append(result.Errors,
-				fmt.Sprintf("%s: skipped (context cancelled: %v)", c.Name, ctx.Err()))
+				fmt.Sprintf("%s: skipped (context cancelled: %v)", c.Name, mctx.Ctx.Err()))
 			continue
 		}
-		outPath := filepath.Join(outputDir, c.Filename)
+		outPath := filepath.Join(mctx.OutputDir, c.Filename)
 
 		args := make([]string, len(c.Args))
 		for i, a := range c.Args {
@@ -108,12 +112,12 @@ func runDirectOutputCommands(ctx context.Context, outputDir string, commands []D
 			}
 		}
 
-		cmd := exec.CommandContext(ctx, c.Name, args...)
+		cmd := exec.CommandContext(mctx.Ctx, c.Name, args...)
 		stderr, err := cmd.CombinedOutput()
 		if err != nil {
-			if ctx.Err() != nil {
+			if mctx.Ctx.Err() != nil {
 				result.Errors = append(result.Errors,
-					fmt.Sprintf("%s: cancelled: %v", c.Name, ctx.Err()))
+					fmt.Sprintf("%s: cancelled: %v", c.Name, mctx.Ctx.Err()))
 			} else {
 				result.Errors = append(result.Errors,
 					fmt.Sprintf("%s: %v (stderr: %s)", c.Name, err, string(stderr)))
@@ -130,6 +134,7 @@ func runDirectOutputCommands(ctx context.Context, outputDir string, commands []D
 		if info.Size() == 0 {
 			result.AddWarning(c.Filename, "output file is empty")
 		}
+		bytes += info.Size()
 
 		if !c.SkipChecks && c.Check != nil {
 			if issues := c.Check.verifyContent(outPath); len(issues) > 0 {
@@ -146,6 +151,7 @@ func runDirectOutputCommands(ctx context.Context, outputDir string, commands []D
 		}
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
+	mctx.ReportProgress(len(commands), len(commands), bytes)
 }
 
 func describeArtifact(path string) (Artifact, error) {

@@ -107,7 +107,10 @@ func (m *ExtendedEventChannels) Run(ctx *Context) Result {
 	totalBytes := int64(0)
 	skippedDirs := 0
 
-	for _, entry := range entries {
+	for i, entry := range entries {
+		// Report intra-module progress (entries seen / total, bytes copied).
+		ctx.ReportProgress(i, len(entries), totalBytes)
+
 		// Honour cancellation/timeout mid-copy — winevt\Logs can be large.
 		if ctx.Ctx.Err() != nil {
 			result.Errors = append(result.Errors,
@@ -152,6 +155,7 @@ func (m *ExtendedEventChannels) Run(ctx *Context) Result {
 		evtxCount++
 		totalBytes += info.Size()
 	}
+	ctx.ReportProgress(len(entries), len(entries), totalBytes)
 
 	if evtxCount == 0 {
 		result.AddInfo("extended_event_channels",

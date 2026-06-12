@@ -63,7 +63,15 @@ func (m *UserHivesCollection) Run(ctx *Context) Result {
 	skippedBuiltin := 0
 	profilesWithHives := 0
 
-	for _, p := range profiles {
+	for i, p := range profiles {
+		// Report intra-module progress per profile (bytes = hives collected so
+		// far). Hives are recorded as artifacts, so their sizes sum the volume.
+		var uhBytes int64
+		for _, a := range result.Artifacts {
+			uhBytes += a.Size
+		}
+		ctx.ReportProgress(i, len(profiles), uhBytes)
+
 		if p.IsBuiltin {
 			skippedBuiltin++
 			continue
@@ -102,6 +110,11 @@ func (m *UserHivesCollection) Run(ctx *Context) Result {
 			profilesWithHives++
 		}
 	}
+	var uhBytesFinal int64
+	for _, a := range result.Artifacts {
+		uhBytesFinal += a.Size
+	}
+	ctx.ReportProgress(len(profiles), len(profiles), uhBytesFinal)
 
 	// Summary findings.
 	if humanCount == 0 {

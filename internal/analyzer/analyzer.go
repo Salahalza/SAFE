@@ -51,6 +51,11 @@ type ParserResult struct {
 // Examples: number of files parsed, number skipped, unknowns encountered.
 type ParseStats map[string]int
 
+// ProgressFunc reports a parser's intra-parse progress (work units done /
+// total) so the UI can advance a bar while a slow parser runs. A parser may
+// call it as coarsely or finely as makes sense, or not at all.
+type ProgressFunc func(done, total int)
+
 // Parser is what each analyzer module implements.
 type Parser interface {
 	// Name returns the parser's identifier.
@@ -61,12 +66,24 @@ type Parser interface {
 	// stats for inclusion in the report, and any errors encountered.
 	// A parser may legitimately produce zero outputs (no source artifacts
 	// in the case, etc.) without erroring.
-	Parse(caseDir, labReportDir string) ([]string, ParseStats, []error)
+	//
+	// report, if non-nil, lets the parser stream intra-parse progress; calling
+	// it is optional. Use it for slow parsers so the analyze bar keeps moving.
+	Parse(caseDir, labReportDir string, report ProgressFunc) ([]string, ParseStats, []error)
 }
 
 // Run executes all registered parsers against the given case folder.
 // Output goes to <caseDir>/lab_report/.
 func Run(caseDir string, parsers []Parser) (*Result, error) {
+	return RunWithProgress(caseDir, parsers, nil)
+}
+
+// RunWithProgress is Run with an optional progress callback reporting an
+// overall 0..1 fraction and the current parser's name. The fraction blends
+// completed parsers with the running parser's own intra-parse progress (each
+// parser is an equal 1/N slice, advancing smoothly within), so the bar keeps
+// moving even during a slow parser. nil disables it.
+func RunWithProgress(caseDir string, parsers []Parser, onProgress func(frac float64, label string)) (*Result, error) {
 	started := time.Now().UTC()
 
 	if info, err := os.Stat(caseDir); err != nil {
@@ -87,9 +104,31 @@ func Run(caseDir string, parsers []Parser) (*Result, error) {
 		ParsersRun:   []ParserResult{},
 	}
 
-	for _, p := range parsers {
-		pResult := runParser(p, caseDir, labReportDir)
+	n := len(parsers)
+	lastPct := -1
+	for i, p := range parsers {
+		if onProgress != nil {
+			onProgress(float64(i)/float64(max(n, 1)), p.Name())
+		}
+		// Blend this parser's intra-parse progress into the overall fraction,
+		// throttled to whole-percent changes so a parser reporting per-file
+		// doesn't flood the channel.
+		idx, name := i, p.Name()
+		report := ProgressFunc(func(done, total int) {
+			if onProgress == nil || total <= 0 {
+				return
+			}
+			frac := (float64(idx) + float64(done)/float64(total)) / float64(max(n, 1))
+			if pct := int(frac * 100); pct != lastPct {
+				lastPct = pct
+				onProgress(frac, name)
+			}
+		})
+		pResult := runParser(p, caseDir, labReportDir, report)
 		result.ParsersRun = append(result.ParsersRun, pResult)
+	}
+	if onProgress != nil {
+		onProgress(1.0, "")
 	}
 
 	result.EndedAt = time.Now().UTC()
@@ -185,14 +224,14 @@ func hashFile(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func runParser(p Parser, caseDir, labReportDir string) ParserResult {
+func runParser(p Parser, caseDir, labReportDir string, report ProgressFunc) ParserResult {
 	started := time.Now().UTC()
 	r := ParserResult{
 		Name:      p.Name(),
 		StartedAt: started,
 	}
 
-	outputs, stats, errs := p.Parse(caseDir, labReportDir)
+	outputs, stats, errs := p.Parse(caseDir, labReportDir, report)
 	r.Outputs = outputs
 	r.Stats = stats
 	for _, e := range errs {

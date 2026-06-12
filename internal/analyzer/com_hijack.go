@@ -77,7 +77,7 @@ type comServer struct {
 	flags           string
 }
 
-func (p *ComHijackParser) Parse(caseDir, labReportDir string) ([]string, ParseStats, []error) {
+func (p *ComHijackParser) Parse(caseDir, labReportDir string, report ProgressFunc) ([]string, ParseStats, []error) {
 	stats := ParseStats{}
 	var errs []error
 
@@ -89,13 +89,47 @@ func (p *ComHijackParser) Parse(caseDir, labReportDir string) ([]string, ParseSt
 		return nil, stats, nil
 	}
 
+	// Pre-list the user hives so the progress total is known up front. Indexing
+	// the HKLM hive is by far the slow step (a large hive read), so it gets two
+	// milestones (one per CLSID view) and each user hive gets one — this keeps
+	// the analyze bar moving through the multi-second HKLM index.
+	var userSIDs []string
+	if userHivesRoot != "" {
+		userDirs, derr := os.ReadDir(userHivesRoot)
+		if derr != nil {
+			errs = append(errs, fmt.Errorf("read user hives root: %w", derr))
+		}
+		for _, ud := range userDirs {
+			if !ud.IsDir() {
+				continue
+			}
+			sid := ud.Name()
+			if _, serr := os.Stat(filepath.Join(userHivesRoot, sid, "UsrClass.dat")); serr != nil {
+				continue
+			}
+			userSIDs = append(userSIDs, sid)
+		}
+	}
+
+	totalSteps := len(userSIDs)
+	if softwareHive != "" {
+		totalSteps += 2 // one milestone per HKLM CLSID view (64-bit, Wow6432Node)
+	}
+	step := 0
+	advance := func() {
+		step++
+		if report != nil {
+			report(step, totalSteps)
+		}
+	}
+
 	// HKLM shadow oracle. Index the HKLM CLSID GUID set once (fast, one-level),
 	// keeping the registry open so shadowing user CLSIDs can resolve an HKLM
 	// path on demand. 64-bit (Classes\CLSID) and 32-bit (Wow6432Node) are kept
 	// separate so a user 32-bit CLSID is only matched against HKLM 32-bit.
 	var oracle *hklmOracle
 	if softwareHive != "" {
-		o, swFile, oerr := openHKLMOracle(softwareHive)
+		o, swFile, oerr := openHKLMOracle(softwareHive, advance)
 		if oerr != nil {
 			errs = append(errs, fmt.Errorf("HKLM SOFTWARE: %w", oerr))
 		} else {
@@ -107,28 +141,17 @@ func (p *ComHijackParser) Parse(caseDir, labReportDir string) ([]string, ParseSt
 	// Collect every per-user CLSID server (the hijack surface).
 	var userServers []comServer
 	usersParsed := 0
-	if userHivesRoot != "" {
-		userDirs, derr := os.ReadDir(userHivesRoot)
-		if derr != nil {
-			errs = append(errs, fmt.Errorf("read user hives root: %w", derr))
+	for _, sid := range userSIDs {
+		usrClass := filepath.Join(userHivesRoot, sid, "UsrClass.dat")
+		usersParsed++
+		servers, perr := readUserServers(usrClass, sid)
+		if perr != nil {
+			errs = append(errs, fmt.Errorf("%s UsrClass.dat: %w", sid, perr))
+			advance()
+			continue
 		}
-		for _, ud := range userDirs {
-			if !ud.IsDir() {
-				continue
-			}
-			sid := ud.Name()
-			usrClass := filepath.Join(userHivesRoot, sid, "UsrClass.dat")
-			if _, serr := os.Stat(usrClass); serr != nil {
-				continue
-			}
-			usersParsed++
-			servers, perr := readUserServers(usrClass, sid)
-			if perr != nil {
-				errs = append(errs, fmt.Errorf("%s UsrClass.dat: %w", sid, perr))
-				continue
-			}
-			userServers = append(userServers, servers...)
-		}
+		userServers = append(userServers, servers...)
+		advance()
 	}
 
 	for i := range userServers {
@@ -189,8 +212,10 @@ type hklmOracle struct {
 
 // openHKLMOracle opens the SOFTWARE hive and indexes the CLSID GUID sets. The
 // caller must keep the returned file open (and close it) for the oracle's
-// lifetime — regparser reads lazily from it.
-func openHKLMOracle(hivePath string) (*hklmOracle, *os.File, error) {
+// lifetime — regparser reads lazily from it. afterSet, if non-nil, is called
+// after each CLSID view is indexed (this is the slow step, so it drives the
+// analyze bar forward mid-parse).
+func openHKLMOracle(hivePath string, afterSet func()) (*hklmOracle, *os.File, error) {
 	f, err := os.Open(hivePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open: %w", err)
@@ -200,10 +225,14 @@ func openHKLMOracle(hivePath string) (*hklmOracle, *os.File, error) {
 		f.Close()
 		return nil, nil, fmt.Errorf("parse: %w", err)
 	}
-	o := &hklmOracle{
-		reg:   reg,
-		set64: clsidNameSet(reg, `Classes\CLSID`),
-		set32: clsidNameSet(reg, `Classes\Wow6432Node\CLSID`),
+	o := &hklmOracle{reg: reg}
+	o.set64 = clsidNameSet(reg, `Classes\CLSID`)
+	if afterSet != nil {
+		afterSet()
+	}
+	o.set32 = clsidNameSet(reg, `Classes\Wow6432Node\CLSID`)
+	if afterSet != nil {
+		afterSet()
 	}
 	return o, f, nil
 }

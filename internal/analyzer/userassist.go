@@ -42,7 +42,7 @@ var guidCategoryNames = map[string]string{
 	"{BCB48336-4DDD-48FF-BB0B-D3190DACB3E2}": "Recently used",
 }
 
-func (p *UserAssistParser) Parse(caseDir, labReportDir string) ([]string, ParseStats, []error) {
+func (p *UserAssistParser) Parse(caseDir, labReportDir string, report ProgressFunc) ([]string, ParseStats, []error) {
 	stats := ParseStats{}
 
 	hivesGlob := filepath.Join(caseDir, "modules", "*_user_hives_collection")
@@ -74,7 +74,10 @@ func (p *UserAssistParser) Parse(caseDir, labReportDir string) ([]string, ParseS
 	totalEntries := 0
 	unknownGUIDs := map[string]bool{} // dedupe across users
 
-	for _, ud := range userDirs {
+	for i, ud := range userDirs {
+		if report != nil {
+			report(i, len(userDirs))
+		}
 		if !ud.IsDir() {
 			continue
 		}

@@ -17,6 +17,12 @@ type moduleState struct {
 	status    string // "pending", "running", "done"
 	result    *module.Result
 	startedAt time.Time
+
+	// Intra-module progress, updated by EventModuleProgress: work units done /
+	// total within the module, and cumulative bytes the module has written.
+	subDone  int
+	subTotal int
+	subBytes int64
 }
 
 // progressModel holds the state of the in-progress collection screen.
@@ -36,6 +42,59 @@ type progressModel struct {
 // spinnerFrames are simple ASCII characters that rotate to show activity.
 // ASCII-only so they render on plain Windows PowerShell (no Unicode braille).
 var spinnerFrames = []string{"|", "/", "-", "\\"}
+
+// barFillStyle / barEmptyStyle render a real (solid) progress bar using ANSI
+// BACKGROUND colors on plain spaces — no Unicode block glyphs, so it renders
+// correctly on plain Windows PowerShell while still looking like a filled bar
+// rather than ASCII text.
+var (
+	barFillStyle  = lipgloss.NewStyle().Background(lipgloss.Color("#22D3EE")) // cyan
+	barEmptyStyle = lipgloss.NewStyle().Background(lipgloss.Color("#334155")) // slate
+	barPctStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#E2E8F0")).Bold(true)
+)
+
+// styledBar renders a solid filled progress bar of the given cell width with a
+// trailing percentage, e.g. a cyan fill over a slate track followed by " 42%".
+func styledBar(done, total, width int) string {
+	if total <= 0 {
+		total = 1
+	}
+	return styledBarFrac(float64(done)/float64(total), width)
+}
+
+// styledBarFrac renders the bar from a 0..1 fraction directly — used by the
+// collection screen where the fraction blends completed modules with the
+// running module's intra-module progress.
+func styledBarFrac(frac float64, width int) string {
+	if frac < 0 {
+		frac = 0
+	}
+	if frac > 1 {
+		frac = 1
+	}
+	filled := int(frac*float64(width) + 0.5)
+	if filled > width {
+		filled = width
+	}
+	bar := barFillStyle.Render(strings.Repeat(" ", filled)) +
+		barEmptyStyle.Render(strings.Repeat(" ", width-filled))
+	return bar + barPctStyle.Render(fmt.Sprintf(" %3d%%", int(frac*100+0.5)))
+}
+
+// humanBytes formats a byte count as a short human-readable string (e.g.
+// "238 MB") for the live "data collected" readout.
+func humanBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
 
 // progressTickMsg is sent periodically to update the elapsed time and spinner.
 type progressTickMsg time.Time
@@ -72,11 +131,29 @@ func (p *progressModel) applyEvent(ev engine.ProgressEvent) {
 			startedAt: time.Now(),
 		}
 
+	case engine.EventModuleProgress:
+		if ev.ModuleIndex < len(p.modules) {
+			p.modules[ev.ModuleIndex].subDone = ev.SubDone
+			p.modules[ev.ModuleIndex].subTotal = ev.SubTotal
+			p.modules[ev.ModuleIndex].subBytes = ev.SubBytes
+		}
+
 	case engine.EventModuleDone:
 		if ev.ModuleIndex < len(p.modules) {
 			p.modules[ev.ModuleIndex].status = "done"
 			r := ev.Result
 			p.modules[ev.ModuleIndex].result = &r
+			// For modules that didn't stream intra-module byte progress (the
+			// small command/snapshot modules), credit their collected volume to
+			// the live "data collected" total from their recorded artifacts, so
+			// the readout reflects every module, not just the bulk-copy ones.
+			if p.modules[ev.ModuleIndex].subBytes == 0 {
+				var b int64
+				for _, a := range r.Artifacts {
+					b += a.Size
+				}
+				p.modules[ev.ModuleIndex].subBytes = b
+			}
 		}
 
 	case engine.EventCaseDone:
@@ -147,7 +224,36 @@ func (p progressModel) View() string {
 		b.WriteString(line)
 	}
 
+	// Overall progress: completed modules plus the running module's own
+	// intra-module fraction, so the bar advances with real file/byte counts
+	// rather than only stepping at module boundaries. Also sum bytes collected
+	// so far across all modules for a live "data collected" readout.
+	done := 0
+	var totalBytes int64
+	runFrac := 0.0
+	for _, m := range p.modules {
+		totalBytes += m.subBytes
+		if m.status == "done" {
+			done++
+		} else if m.status == "running" && m.subTotal > 0 {
+			runFrac = float64(m.subDone) / float64(m.subTotal)
+		}
+	}
+	overall := 0.0
+	if len(p.modules) > 0 {
+		overall = (float64(done) + runFrac) / float64(len(p.modules))
+	}
+
 	b.WriteString("\n")
+	b.WriteString(labelStyle.Render("Progress "))
+	b.WriteString(styledBarFrac(overall, 28))
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#94A3B8")).Render(
+		fmt.Sprintf("   %d/%d modules", done, len(p.modules))))
+	b.WriteString("\n")
+	b.WriteString(labelStyle.Render("Collected "))
+	b.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#86EFAC")).Render(humanBytes(totalBytes)))
+	b.WriteString("\n\n")
+
 	footer := fmt.Sprintf("Elapsed: %s   |   Time limit: %s",
 		p.elapsed.Round(time.Second), p.totalBudget)
 	b.WriteString(hintStyle.Render(footer))

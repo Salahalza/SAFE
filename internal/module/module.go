@@ -157,4 +157,20 @@ type Context struct {
 	// in the profile required VSS. Nil if no module needs it.
 	// Modules that require VSS read locked files from Shadow.MountedPath.
 	Shadow *vss.Shadow
+
+	// Progress, if set, lets a module report intra-module progress so the UI
+	// can advance a bar with real file/byte counts (rather than only stepping
+	// per module). done/total are work units within the module (files or
+	// commands processed / total); bytes is the cumulative bytes written so far
+	// by this module. Reported from the module's own goroutine; the engine
+	// throttles forwarding. Use ReportProgress so a nil Progress is a no-op.
+	Progress func(done, total int, bytes int64)
+}
+
+// ReportProgress forwards intra-module progress to the UI when a reporter is
+// set, and is a no-op otherwise — modules can call it unconditionally.
+func (c *Context) ReportProgress(done, total int, bytes int64) {
+	if c != nil && c.Progress != nil {
+		c.Progress(done, total, bytes)
+	}
 }

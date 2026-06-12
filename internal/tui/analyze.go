@@ -52,9 +52,9 @@ func (m model) analyzePickerView() string {
 	return containerStyle.Render(b.String())
 }
 
-// analyzeProgressView shows a spinner while the analyzer runs. Today's
-// parsers complete in milliseconds; this screen exists for forward
-// compatibility with heavier future parsers.
+// analyzeProgressView shows a live progress bar while the analyzer runs,
+// advancing parser-by-parser. Some parsers (e.g. com_hijack on a large hive)
+// take several seconds, so the bar and current-parser name give real feedback.
 func (m model) analyzeProgressView() string {
 	var b strings.Builder
 
@@ -65,14 +65,22 @@ func (m model) analyzeProgressView() string {
 	b.WriteString(m.analyzeCaseDir)
 	b.WriteString("\n\n")
 
+	b.WriteString(labelStyle.Render("Progress "))
+	b.WriteString(styledBarFrac(m.analyzeFrac, 28))
+	b.WriteString("\n\n")
+
 	spinner := spinnerFrames[m.analyzeSpinTick%len(spinnerFrames)]
+	current := m.analyzeLabel
+	if current == "" {
+		current = "finishing..."
+	}
 	body := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#7DD3FC")).
-		Render(fmt.Sprintf("%s  Running parsers on the case folder...", spinner))
+		Render(fmt.Sprintf("%s  %s", spinner, current))
 	b.WriteString(body)
 	b.WriteString("\n\n")
 
-	b.WriteString(hintStyle.Render("This usually takes a few seconds. Ctrl+C to cancel."))
+	b.WriteString(hintStyle.Render("Ctrl+C to cancel."))
 
 	return containerStyle.Render(b.String())
 }

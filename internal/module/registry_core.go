@@ -41,7 +41,7 @@ func (m *RegistryCore) Run(ctx *Context) Result {
 			Args:     []string{"save", h.key, "{OUTPUT}", "/y"},
 		})
 	}
-	runDirectOutputCommands(ctx.Ctx, ctx.OutputDir, commands, &result)
+	runDirectOutputCommands(ctx, commands, &result)
 
 	finalize(&result, started, ctx.Ctx)
 	return result

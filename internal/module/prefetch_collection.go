@@ -95,7 +95,10 @@ func (m *PrefetchCollection) Run(ctx *Context) Result {
 	totalBytes := int64(0)
 	skipped := 0
 
-	for _, entry := range entries {
+	for i, entry := range entries {
+		// Report intra-module progress (entries seen / total, bytes copied).
+		ctx.ReportProgress(i, len(entries), totalBytes)
+
 		// Skip subdirectories — Windows occasionally has ReadyBoot/, etc.
 		if entry.IsDir() {
 			skipped++
@@ -138,6 +141,7 @@ func (m *PrefetchCollection) Run(ctx *Context) Result {
 		pfCount++
 		totalBytes += info.Size()
 	}
+	ctx.ReportProgress(len(entries), len(entries), totalBytes)
 
 	// Summary findings and bulk count.
 	if pfCount == 0 {

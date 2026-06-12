@@ -613,3 +613,37 @@ memory capture. Design: docs/journal/2026-06-12e-pmi-design.md.
   (windows.storage.dll) with C:\Temp\evil.dll was flagged HIGH; planted .sct and
   mshta servers were flagged NOTABLE; the host's real OneDrive CLSIDs stayed
   NOTABLE. Regression fixture + recipe documented in docs/test-fixtures.md.
+
+
+
+## 2026-06-12 — Progress bars (real, data-driven) across collection and analysis
+
+- Added live progress bars to both collection and analysis, in the TUI and CLI.
+  The TUI bars are solid filled bars rendered with ANSI background colors on
+  spaces — no Unicode block glyphs, so they render correctly on plain Windows
+  PowerShell (which shows braille/box-drawing as `?`). CLI keeps an ASCII
+  `[####----]` bar for its append-only output.
+- The bars reflect REAL work, not just step counts:
+  - Collection advances *within* each module as files/bytes are actually
+    copied. A new throttled `EventModuleProgress` carries intra-module
+    file/byte counts; the overall bar is `(completed modules + running module
+    fraction) / total`. Bulk-copy modules (prefetch, extended_event_channels,
+    amcache, user_hives) report per file; command modules (registry_core,
+    eventlogs_core core batch) report per command via `runDirectOutputCommands`.
+    A live "Collected  N MB" readout sums bytes across modules. Because real
+    file counts drive it, the pacing now varies per host.
+  - Analysis advances *within* each parser. The `Parser` interface gained an
+    optional `ProgressFunc` reporter; `RunWithProgress` blends each parser's
+    intra-parse progress into an overall fraction (each parser an equal slice,
+    smooth within). prefetch/userassist/process_memory report per
+    file/hive/region; com_hijack reports milestones across its multi-second
+    HKLM CLSID index so the bar keeps moving instead of freezing.
+- A new `module.Context.Progress` reporter (`ReportProgress` helper) lets
+  modules stream progress without each having to nil-check. `engine.ASCIIBar`
+  is the shared CLI bar renderer.
+- The TUI analyze screen, previously a bare spinner, now streams the analyzer
+  parser-by-parser over a channel (mirroring the collection flow) and shows the
+  live bar plus the current parser name.
+- No change to collected/parsed output or to any artifact — progress reporting
+  is display-only. Collection within-module bar VM-verified; analysis
+  within-parser bar built on the same streaming path.
