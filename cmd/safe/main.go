@@ -560,6 +560,7 @@ func runAnalyzer(caseDir string) {
 	registry.Register(&analyzer.UserAssistParser{})
 	registry.Register(&analyzer.PrefetchParser{})
 	registry.Register(&analyzer.ProcessMemoryParser{})
+	registry.Register(&analyzer.ComHijackParser{})
 
 	result, err := analyzer.Run(caseDir, registry.All())
 	if err != nil {
@@ -602,5 +603,6 @@ func runAnalyzerFromTUI(caseDir string) (*analyzer.Result, error) {
 	registry.Register(&analyzer.UserAssistParser{})
 	registry.Register(&analyzer.PrefetchParser{})
 	registry.Register(&analyzer.ProcessMemoryParser{})
+	registry.Register(&analyzer.ComHijackParser{})
 	return analyzer.Run(caseDir, registry.All())
 }

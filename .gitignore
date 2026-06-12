@@ -12,3 +12,6 @@ Thumbs.db
 
 # Test output (case folders)
 test-output/
+
+# Test fixtures (large binary hives; preserved locally, documented in docs/test-fixtures.md)
+test-fixtures/

@@ -582,3 +582,34 @@ memory capture. Design: docs/journal/2026-06-12e-pmi-design.md.
   regions: 21 RWX→HIGH, 63 LOW; strings/PE/IOC true-negative on the clean host)
   and against synthetic positives (planted PE → carved + machine/DLL identified;
   planted URL/IP/UNC/API → counted; 256 KiB cap → truncates correctly).
+
+
+
+## 2026-06-12 — Lab analyzer: com_hijack
+
+- New lab-side analyzer `com_hijack` (parser name `com_hijack`), the COM half of
+  the deferred Phase 2 lab work. Detects COM-hijacking persistence (MITRE
+  T1546.015) by parsing the collected registry hives offline.
+- Parses each user's `UsrClass.dat` (the HKCU\Software\Classes backing hive,
+  collected by user_hives_collection — NOT NTUSER.DAT, which does not hold the
+  per-user CLSID surface) and inventories every CLSID server registration. Uses
+  the HKLM SOFTWARE hive (registry_core) as a shadow oracle.
+- Triage: a per-user CLSID that SHADOWS an HKLM CLSID with a DIFFERENT module
+  path → HIGH (the override-hijack pattern); a server in a user-writable path, a
+  script/scriptlet server module (.sct/.js/.vbs/...), a LOLBin server command,
+  or a TreatAs redirection → NOTABLE; ordinary per-user shell extensions → LOW.
+- Legitimate per-user apps (OneDrive/Teams/Slack) register COM servers under
+  AppData; those are user-only and never shadow HKLM, so they land at NOTABLE,
+  never HIGH. The summary states this so an AppData path alone is not misread.
+- Performance: HKLM is indexed as a one-level GUID set (membership) and an HKLM
+  module path is resolved on demand only for the handful of confirmed shadows.
+  This replaced an initial deep walk of all ~12k HKLM CLSID servers that cost
+  ~3m40s on the 2-core test VM; the shadow-oracle approach runs in seconds.
+- Output under `lab_report/com_hijack/`: `com_servers.csv` (per-user server
+  index with tier + flags) and `summary.txt` (HIGH/NOTABLE called out, with the
+  OneDrive/AppData caveat).
+- Verified end-to-end on the Windows 11 VM with a planted true positive: a
+  per-user CLSID {00021401-…} (ShellLink) overriding the real HKLM server
+  (windows.storage.dll) with C:\Temp\evil.dll was flagged HIGH; planted .sct and
+  mshta servers were flagged NOTABLE; the host's real OneDrive CLSIDs stayed
+  NOTABLE. Regression fixture + recipe documented in docs/test-fixtures.md.
