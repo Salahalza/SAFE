@@ -333,9 +333,17 @@ Must pass before any commit.
 
 ### Cross-compile for Windows VM
 
+**Always use `make vm`.** The test VM can only access `test-output/vm/`, so
+the Windows binary MUST be built there — never to the repo root. The output
+path is baked into the Makefile so no session has to remember it:
+
 ```bash
-GOOS=windows GOARCH=amd64 go build -o safe.exe ./cmd/safe
+make vm        # -> test-output/vm/safe.exe (creates the dir if needed)
 ```
+
+Do NOT run `go build -o safe.exe ./cmd/safe` directly — that drops the binary
+in the repo root where the VM cannot reach it. `make check` runs the standard
+pre-handoff combo: `go build ./...`, `go vet ./...`, then `make vm`.
 
 ### Test on VM checklist
 

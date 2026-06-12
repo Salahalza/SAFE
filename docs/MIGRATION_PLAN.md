@@ -165,8 +165,8 @@ commit makes it easy to revert if anything's wrong.
 
 8. **Build** — `go build ./...` clean.
 
-9. **Cross-compile** — `GOOS=windows GOARCH=amd64 go build -o safe.exe
-   ./cmd/safe`.
+9. **Cross-compile** — `make vm` (-> `test-output/vm/safe.exe`, the
+   VM-accessible folder; never the repo root).
 
 10. **Test on VM** — All three TUI flows. CLI flags. Verify. Analyze.
     Confirm the banner spells SAFE. Confirm output strings reference SAFE.

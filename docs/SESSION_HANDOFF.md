@@ -127,8 +127,10 @@ relevant work starts:
 - No rebase (decision made; see CLAUDE.md)
 
 **Build:**
-- `go build ./...` for local
-- Cross-compile to Windows: `GOOS=windows GOARCH=amd64 go build -o safe.exe ./cmd/safe`
+- `make build` (or `go build ./...`) for local compile check
+- `make vm` for the Windows VM binary → `test-output/vm/safe.exe` (the only
+  folder the VM can access). NEVER build the exe to the repo root. `make check`
+  runs build + vet + vm together.
 
 **Test:**
 - VM is the integration test environment
