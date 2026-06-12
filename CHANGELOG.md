@@ -510,3 +510,45 @@ nothing clips on a terminal shorter than its content.
 - analyze-complete was the main beneficiary — its parser list grows with the
   number of parsers and previously clipped on short terminals.
 - VM-verified on the Windows 11 VM.
+
+
+## 2026-06-12 — process_memory_inspection module (collect-only)
+
+Third Phase 2 collection module. Native, user-mode, collect-only per-process
+memory capture. Design: docs/journal/2026-06-12e-pmi-design.md.
+
+- New module `process_memory_inspection`: enumerates processes (Toolhelp), and
+  for each one it can open, walks the address space with `VirtualQueryEx` and
+  dumps every committed, private (non-image/non-mapped), executable-or-RWX
+  region to disk via `ReadProcessMemory`. Targets injected / unbacked code.
+- Collect-only by design (architectural principle #1): the module makes NO
+  judgement on the target. The raw region bytes ARE the artifact. All
+  interpretation — strings, PE-carve, RWX triage — is deferred to a lab-side
+  `process_memory` analyzer (not yet built). Region selection is a
+  protection-flag scope filter, not content analysis.
+- Output: `processes.csv` and `regions.csv` (primary artifacts — the analyst's
+  index) plus raw region blobs under `dumps/<pid>_<name>/<base>_<size>.bin`
+  (bulk files, hashed individually by the manifest walker). A single region is
+  capped at 128 MiB to bound output; truncation is recorded in the index.
+- First module in the codebase to use native Windows syscalls rather than
+  shelling out. Implemented as a `_windows.go` / `_other.go` build-tag pair
+  (the non-Windows stub keeps `go build ./...` green on the macOS dev host),
+  following the existing pathfinder/admin/preflight convention.
+- Opt-in only. Added to a new dedicated LOUD profile `memory_triage`
+  (process_snapshot + this module, v0.1.0) AND to `endpoint_deep` (now v0.3.0,
+  budget raised to 75 min, description marked EDR-visible), running right after
+  process_snapshot per order of volatility. NEVER added to rapid_triage.
+- Status: per-process `OpenProcess` denials (PPL/protected/system, or EDR) are
+  expected and recorded as info, not errors; a clean run stays `success`.
+  Opening zero processes degrades to `partial`. Mirrors the absent-key handling
+  in `extended_persistence`.
+- AV note: this is the loudest module SAFE ships; OpenProcess/ReadProcessMemory
+  are exactly what EDR hooks. Expect Defender to escalate and real EDR to
+  possibly block or strip handles mid-read. Documented in docs/LIMITATIONS.md.
+- Verified end-to-end on the Windows 11 VM (elevated). `memory_triage`:
+  status=success; 139 processes (124 opened, 15 denied — lsass/services/csrss/
+  winlogon correctly denied as protected; PPL/system expected), 84 exec/RWX-
+  private regions dumped (21 RWX + 63 RX) from 14 processes (browser/JIT/.NET),
+  0 read errors, 0 truncations, ~8.8 MiB total; `safe --verify` OK on 95 files
+  including the nested dumps/ blobs. `endpoint_deep` (now v0.3.0): all 12
+  modules success, PMI runs at position 02 right after process_snapshot.

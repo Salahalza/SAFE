@@ -7,6 +7,7 @@ func RegisterDefaults(r *Registry) error {
 	defaults := []*Profile{
 		RapidTriage(),
 		EndpointDeep(),
+		MemoryTriage(),
 		// More profiles get added here as they're written:
 		// VolatileCapture(),
 		// ServerInfra(),
