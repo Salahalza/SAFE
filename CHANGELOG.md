@@ -440,3 +440,26 @@ First Phase 2 collection module.
   (138 MB) in ~1.9s, status=success, manifest hashed all 192, the bulk
   count is reported as one dataset (not 192 inflated artifacts), and
   `--verify` passes.
+
+
+## 2026-06-12 — New-case form: vertical profile list + scrollable
+
+Two display fixes to the new-case form, both surfaced once a second
+profile (endpoint_deep) existed.
+
+- Profile options now render as a wrapping vertical list (one per line),
+  scaled to the terminal width, instead of a single horizontal line that
+  clipped off the right edge or hid the second profile on a narrow
+  terminal.
+- The whole form now renders inside a bubbles/viewport so it scrolls
+  instead of clipping when the terminal is shorter than the form. Scrolls
+  via mouse wheel and PgUp/PgDn, and auto-follows keyboard focus — tabbing
+  to a field below the fold scrolls it into view, so Submit is always
+  reachable by keyboard even on a small terminal.
+- Mouse support enabled program-wide (tea.WithMouseCellMotion); the report
+  viewer now also scrolls with the mouse wheel.
+- The keybinding hint moved to a persistent footer outside the scroll
+  region so it stays visible at all scroll positions.
+- Known follow-up: the confirm, complete, and analyze-complete summary
+  screens can still clip on very short terminals; the same viewport pattern
+  will be extended to them.

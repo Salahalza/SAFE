@@ -49,6 +49,8 @@ func (m model) activateWelcomeChoice() (tea.Model, tea.Cmd) {
 	case welcomeStartCollection:
 		m.screen = screenForm
 		m.form.focus(0)
+		m.formViewport.GotoTop()
+		m.refreshFormViewport(true)
 		return m, nil
 	case welcomeRunAnalyzer:
 		if m.analyzeFn == nil {

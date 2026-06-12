@@ -143,21 +143,35 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		// Mouse wheel scrolls the form without disturbing field focus.
+		m.formViewport, cmd = m.formViewport.Update(msg)
+		return m, cmd
+
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "esc":
 			m.screen = screenWelcome
 			return m, nil
+		case "pgup":
+			m.formViewport.ViewUp()
+			return m, nil
+		case "pgdown":
+			m.formViewport.ViewDown()
+			return m, nil
 		case "tab", "down":
 			m.form.nextField()
+			m.refreshFormViewport(true)
 			return m, nil
 		case "shift+tab", "up":
 			m.form.prevField()
+			m.refreshFormViewport(true)
 			return m, nil
 		case "enter":
 			if m.form.focused == fieldSubmit {
 				if err := m.form.validate(); err != nil {
 					m.form.errMessage = err.Error()
+					m.refreshFormViewport(true)
 					return m, nil
 				}
 				m.form.errMessage = ""
@@ -165,6 +179,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 			m.form.nextField()
+			m.refreshFormViewport(true)
 			return m, nil
 		case "left", "right":
 			if m.form.focused == fieldTargetClass {
@@ -178,6 +193,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 					idx = (idx + 1) % len(targetClassOptions)
 				}
 				m.form.targetClass = targetClassOptions[idx].value
+				m.refreshFormViewport(true)
 				return m, nil
 			}
 			if m.form.focused == fieldProfile {
@@ -191,6 +207,7 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 					idx = (idx + 1) % len(AvailableProfiles)
 				}
 				m.form.profile = AvailableProfiles[idx].Value
+				m.refreshFormViewport(true)
 				return m, nil
 			}
 		}
@@ -211,6 +228,9 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.form.notes, cmd = m.form.notes.Update(msg)
 	}
 
+	// Typing changed the field content — re-render so the viewport reflects it,
+	// keeping the active field in view.
+	m.refreshFormViewport(true)
 	return m, cmd
 }
 
@@ -232,31 +252,51 @@ func indexOfProfile(value string) int {
 	return 0
 }
 
-func (f formModel) View() string {
+// render builds the form body and reports the line offset and height of the
+// currently focused field within that body. The offsets let the parent model
+// keep the focused field visible while scrolling (see followFormFocus). The
+// keybinding hint is intentionally NOT included here — it lives in a persistent
+// footer outside the scroll region so it stays visible at all times.
+func (f formModel) render(width int) (body string, focusStart, focusHeight int) {
 	var b strings.Builder
+	curLine := 0
+	focusStart, focusHeight = 0, 1
 
-	b.WriteString(titleStyle.Render("Start a new case"))
-	b.WriteString("\n\n")
+	// write appends a field block and, if it is the focused field, records
+	// where it starts and how tall it is (measured in lines).
+	write := func(field formField, s string) {
+		lines := strings.Count(s, "\n")
+		if field == f.focused {
+			focusStart = curLine
+			if lines < 1 {
+				lines = 1
+			}
+			focusHeight = lines
+		}
+		b.WriteString(s)
+		curLine += strings.Count(s, "\n")
+	}
 
-	b.WriteString(f.renderTextField("Case ID", f.caseID, fieldCaseID))
-	b.WriteString(f.renderTextField("IR# (optional)", f.irNumber, fieldIRNumber))
-	b.WriteString(f.renderTextField("CSI# (optional)", f.csiNumber, fieldCSINumber))
-	b.WriteString(f.renderTextField("Analyst", f.analyst, fieldAnalyst))
-	b.WriteString(f.renderTextField("Target", f.target, fieldTarget))
-	b.WriteString(f.renderTargetClass())
-	b.WriteString(f.renderProfile())
-	b.WriteString(f.renderTextField("Notes (optional)", f.notes, fieldNotes))
-	b.WriteString(f.renderSubmit())
+	title := titleStyle.Render("Start a new case") + "\n\n"
+	b.WriteString(title)
+	curLine += strings.Count(title, "\n")
+
+	write(fieldCaseID, f.renderTextField("Case ID", f.caseID, fieldCaseID))
+	write(fieldIRNumber, f.renderTextField("IR# (optional)", f.irNumber, fieldIRNumber))
+	write(fieldCSINumber, f.renderTextField("CSI# (optional)", f.csiNumber, fieldCSINumber))
+	write(fieldAnalyst, f.renderTextField("Analyst", f.analyst, fieldAnalyst))
+	write(fieldTarget, f.renderTextField("Target", f.target, fieldTarget))
+	write(fieldTargetClass, f.renderTargetClass())
+	write(fieldProfile, f.renderProfile(width))
+	write(fieldNotes, f.renderTextField("Notes (optional)", f.notes, fieldNotes))
+	write(fieldSubmit, f.renderSubmit())
 
 	if f.errMessage != "" {
 		b.WriteString(errorStyle.Render("[x] " + f.errMessage))
 		b.WriteString("\n")
 	}
 
-	hint := hintStyle.Render("\nTab / Down next field   |   Shift+Tab / Up previous field   |   Left / Right change selection   |   Esc go back   |   Ctrl+C quit")
-	b.WriteString(hint)
-
-	return containerStyle.Render(b.String())
+	return b.String(), focusStart, focusHeight
 }
 
 func (f formModel) renderTextField(label string, ti textinput.Model, field formField) string {
@@ -290,27 +330,60 @@ func (f formModel) renderTargetClass() string {
 	return label + "\n" + strings.Join(parts, "   ") + "\n\n"
 }
 
-func (f formModel) renderProfile() string {
+func (f formModel) renderProfile(width int) string {
 	style := labelStyle
 	if f.focused == fieldProfile {
 		style = focusedLabelStyle
 	}
 	label := style.Render("Collection profile")
 
-	var parts []string
+	// Render one profile per line, wrapped to the terminal width, instead of
+	// joining them horizontally — profile labels are full descriptions and
+	// would clip off the right edge or hide on a narrow terminal. Mirrors the
+	// wrap math used in the analyze view: containerStyle has Padding(2,6) = 12
+	// cols of horizontal frame; reserve 2 more as a gutter.
+	if width <= 0 {
+		width = 80 // before the first WindowSizeMsg arrives
+	}
+	avail := width - 14
+	if avail < 30 {
+		avail = 30
+	}
+
+	// The marker prefix "(*) " is 4 columns wide. Wrap the label to the
+	// remaining width, then hang the continuation lines under the text so
+	// wrapped lines line up instead of running back to the left margin.
+	const indent = "    "
+	labelWidth := avail - len(indent)
+	if labelWidth < 20 {
+		labelWidth = 20
+	}
+
+	var lines []string
 	for _, o := range AvailableProfiles {
 		marker := "( )"
 		if o.Value == f.profile {
 			marker = "(*)"
 		}
-		text := marker + " " + o.Label
-		if f.focused == fieldProfile && o.Value == f.profile {
-			text = lipgloss.NewStyle().Foreground(lipgloss.Color("#7DD3FC")).Render(text)
+
+		wrapped := lipgloss.NewStyle().Width(labelWidth).Render(o.Label)
+		wlines := strings.Split(wrapped, "\n")
+		for i := range wlines {
+			if i == 0 {
+				wlines[i] = marker + " " + wlines[i]
+			} else {
+				wlines[i] = indent + wlines[i]
+			}
 		}
-		parts = append(parts, text)
+		block := strings.Join(wlines, "\n")
+
+		if f.focused == fieldProfile && o.Value == f.profile {
+			block = lipgloss.NewStyle().Foreground(lipgloss.Color("#7DD3FC")).Render(block)
+		}
+		lines = append(lines, block)
 	}
 
-	return label + "\n" + strings.Join(parts, "   ") + "\n\n"
+	return label + "\n" + strings.Join(lines, "\n") + "\n\n"
 }
 
 func (f formModel) renderSubmit() string {

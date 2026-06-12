@@ -21,6 +21,7 @@ func (m model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "n", "N", "esc":
 			m.screen = screenForm
+			m.refreshFormViewport(true)
 			return m, nil
 		}
 	}

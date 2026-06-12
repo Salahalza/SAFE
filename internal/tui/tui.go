@@ -50,6 +50,7 @@ func RunWithCollection(
 	p := tea.NewProgram(
 		initialModelWithRunner(registry, runnerFunc(runFn), analyzeFn),
 		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(), // enable mouse wheel scrolling
 	)
 	finalModel, err := p.Run()
 	if err != nil {
@@ -156,6 +157,11 @@ type model struct {
 	reportErr      error
 	reportViewport viewport.Model
 
+	// formViewport wraps the new-case form so it can scroll (mouse wheel /
+	// PgUp / PgDn) instead of clipping when the terminal is shorter than the
+	// form. Content is refreshed on every form update; see refreshFormViewport.
+	formViewport viewport.Model
+
 	// Terminal dimensions (set by WindowSizeMsg)
 	termWidth  int
 	termHeight int
@@ -170,6 +176,7 @@ func initialModelWithRunner(registry ProfileLookup, r Runner, analyzeFn Analyzer
 		analyzeFn:     analyzeFn,
 		analyzePicker: newCaseFolderPicker(),
 		reportPicker:  newCaseFolderPicker(),
+		formViewport:  viewport.New(80, 20),
 	}
 }
 
@@ -188,8 +195,9 @@ func newCaseFolderPicker() filepicker.Model {
 
 func initialModel() model {
 	return model{
-		screen: screenWelcome,
-		form:   newFormModel(),
+		screen:       screenWelcome,
+		form:         newFormModel(),
+		formViewport: viewport.New(80, 20),
 	}
 }
 
@@ -209,6 +217,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
 		m.termWidth = sz.Width
 		m.termHeight = sz.Height
+		// Size the form viewport to the terminal, reserving 3 lines for the
+		// persistent footer. Refresh its content if the form is on screen.
+		m.formViewport.Width = sz.Width
+		formHeight := sz.Height - 3
+		if formHeight < 5 {
+			formHeight = 5
+		}
+		m.formViewport.Height = formHeight
+		if m.screen == screenForm {
+			m.refreshFormViewport(true)
+		}
 		// If the report viewport already exists, resize it.
 		if m.reportData != nil {
 			vpHeight := sz.Height - 3
@@ -286,12 +305,49 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// formViewerView renders the scrollable form plus a persistent footer that
+// stays visible regardless of scroll position.
+func (m model) formViewerView() string {
+	footer := hintStyle.Render("Tab / Down next field   |   Shift+Tab / Up previous   |   Left / Right change selection   |   PgUp / PgDn or mouse wheel to scroll   |   Esc back   |   Ctrl+C quit")
+	return m.formViewport.View() + "\n" + footer
+}
+
+// refreshFormViewport re-renders the form body into the viewport. When follow
+// is true it also scrolls so the focused field stays visible — used after any
+// keyboard navigation, but NOT after a mouse-wheel scroll (which should stay
+// where the user put it).
+func (m *model) refreshFormViewport(follow bool) {
+	body, focusStart, focusHeight := m.form.render(m.termWidth)
+	m.formViewport.SetContent(containerStyle.Render(body))
+	if follow {
+		m.followFormFocus(focusStart, focusHeight)
+	}
+}
+
+// followFormFocus scrolls the form viewport just enough to keep the focused
+// field within view. focusStart/focusHeight are in body-content coordinates;
+// containerStyle adds MarginTop(1)+PaddingTop(2) = 3 lines above the body, so
+// shift by that to land in viewport coordinates.
+func (m *model) followFormFocus(focusStart, focusHeight int) {
+	const topOffset = 3
+	start := focusStart + topOffset
+	end := start + focusHeight
+	top := m.formViewport.YOffset
+	bottom := top + m.formViewport.Height
+	switch {
+	case start < top:
+		m.formViewport.SetYOffset(start)
+	case end > bottom:
+		m.formViewport.SetYOffset(end - m.formViewport.Height)
+	}
+}
+
 func (m model) View() string {
 	switch m.screen {
 	case screenWelcome:
 		return welcomeView(m.welcomeCursor)
 	case screenForm:
-		return m.form.View()
+		return m.formViewerView()
 	case screenConfirm:
 		return m.confirmView()
 	case screenProgress:
@@ -394,7 +450,7 @@ func tickEvery(d time.Duration) tea.Cmd {
 
 // Run is the legacy entry point for collection-only flow.
 func Run() (*casemeta.Case, error) {
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen(), tea.WithMouseCellMotion())
 	finalModel, err := p.Run()
 	if err != nil {
 		return nil, fmt.Errorf("tui error: %w", err)
