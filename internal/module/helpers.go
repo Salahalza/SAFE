@@ -40,6 +40,14 @@ func runCommands(ctx context.Context, outputDir string, commands []Command, resu
 		if err := runOne(ctx, c.Name, c.Args, outPath); err != nil {
 			result.Errors = append(result.Errors,
 				fmt.Sprintf("%s: %v", c.Name, err))
+			// runOne writes whatever the command emitted before failing (often a
+			// useful diagnostic like "Access is denied"). That file is on disk and
+			// the manifest walker WILL hash it, so it must not be silently absent
+			// from result.Artifacts — otherwise the manifest lists a file the
+			// result disowns. Register the non-empty capture as an artifact with a
+			// warning that it is failed-command output; drop an empty one so a
+			// zero-byte orphan is not left behind.
+			registerFailedOutput(result, c.Filename, outPath)
 			continue
 		}
 
@@ -75,6 +83,27 @@ func runCommands(ctx context.Context, outputDir string, commands []Command, resu
 		}
 		result.Artifacts = append(result.Artifacts, artifact)
 	}
+}
+
+// registerFailedOutput reconciles the file a failed command left on disk with
+// the result. A non-empty capture is kept (it is the command's error output,
+// which is itself forensically useful) and registered as an artifact with a
+// warning so the manifest and result.Artifacts agree. An empty capture carries
+// no value and is removed so no zero-byte orphan is hashed into the case.
+func registerFailedOutput(result *Result, filename, outPath string) {
+	info, statErr := os.Stat(outPath)
+	if statErr != nil {
+		return // command never wrote a file; nothing to reconcile
+	}
+	if info.Size() == 0 {
+		_ = os.Remove(outPath)
+		return
+	}
+	if artifact, err := describeArtifact(outPath); err == nil {
+		result.Artifacts = append(result.Artifacts, artifact)
+	}
+	result.AddWarning(filename,
+		"command failed; file contains the command's error output, not a clean artifact")
 }
 
 func runOne(ctx context.Context, name string, args []string, outPath string) error {
