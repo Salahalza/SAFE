@@ -552,3 +552,33 @@ memory capture. Design: docs/journal/2026-06-12e-pmi-design.md.
   0 read errors, 0 truncations, ~8.8 MiB total; `safe --verify` OK on 95 files
   including the nested dumps/ blobs. `endpoint_deep` (now v0.3.0): all 12
   modules success, PMI runs at position 02 right after process_snapshot.
+
+
+## 2026-06-12 — Lab analyzer: process_memory
+
+- New lab-side analyzer `process_memory` (parser name `process_memory`),
+  completing the collect-only PMI feature loop: it performs the interpretation
+  the `process_memory_inspection` module deliberately does NOT do on the target.
+- Reads the module's `regions.csv` + the raw `dumps/` blobs and produces, under
+  `lab_report/process_memory/`:
+  - `regions_triage.csv` — one row per dumped region, enriched with a triage
+    tier (HIGH/NOTABLE/LOW), PE-header detection (machine, DLL flag), ASCII +
+    UTF-16LE string counts, and IOC-hit counts. The analyst's at-a-glance index.
+  - `carved_pe/` — PE images carved from regions containing a valid MZ/PE header
+    (manually-mapped / reflectively-loaded code). Carves what is present in the
+    region; partial when the region is smaller than SizeOfImage.
+  - `strings/` — extracted ASCII + UTF-16LE strings, one file per dumped region,
+    each capped at 256 KiB (truncation noted; CSV counts stay uncapped).
+  - `summary.txt` — human-readable triage with every HIGH region called out.
+- Triage: RWX-private memory or a PE-bearing region → HIGH (classic injection /
+  manual map); an executable region with IOC hits but no PE → NOTABLE; otherwise
+  LOW (commonly benign browser/.NET JIT, which the module's filter surfaces).
+- IOC matching uses shortest-distinctive-stem API names (e.g. "VirtualAlloc"
+  catches VirtualAllocEx) plus URL / IPv4 / UNC matchers — broad coverage with
+  no double-counting.
+- Reports `skipped` (not `failed`) when the PMI module is absent from a case, so
+  rapid_triage cases don't surface a spurious failure.
+- Verified locally against the real VM-collected `memory_triage` case (84
+  regions: 21 RWX→HIGH, 63 LOW; strings/PE/IOC true-negative on the clean host)
+  and against synthetic positives (planted PE → carved + machine/DLL identified;
+  planted URL/IP/UNC/API → counted; 256 KiB cap → truncates correctly).
