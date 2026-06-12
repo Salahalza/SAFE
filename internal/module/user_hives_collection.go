@@ -89,9 +89,13 @@ func (m *UserHivesCollection) Run(ctx *Context) Result {
 			continue
 		}
 
-		// Determine a safe directory name for this user inside the output folder.
-		// Username might be empty or contain non-ASCII; use SID as fallback.
-		userDirName := sanitizeForDirName(p.Username)
+		// The per-user output directory is named by SID, NOT username. The SID is
+		// the canonical, collision-free identifier, and — critically — the
+		// lab-side analyzers (UserAssist, COM-hijack) read each subdirectory name
+		// back AS the SID for attribution (e.g. "<SID>_userassist.csv"). Naming
+		// the dir by username would silently break that attribution. Username is
+		// populated only for human-readable finding/error text.
+		userDirName := sanitizeForDirName(p.SID)
 		if userDirName == "" {
 			userDirName = p.SID
 		}
