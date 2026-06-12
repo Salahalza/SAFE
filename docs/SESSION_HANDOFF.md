@@ -65,10 +65,10 @@ case-metadata version tag is `safe_version`. The acronym now expands to
 
 Texture and decisions are in docs/journal/2026-06-12c-safe-rename.md.
 
-**Still outstanding (manual, external — not blocking):**
-- Rename the GitHub repo in repo settings.
-- Update the local remote URL afterward:
-  `git remote set-url origin <new-url>`.
+**External rename follow-up — DONE (2026-06-12c):**
+- GitHub repo renamed `SAHM` → `SAFE` in repo settings.
+- Local remote updated to `git@github.com:Salahalza/SAFE.git` and
+  connectivity verified (`git ls-remote` returns the correct head).
 
 **Deliberately left as-is (historical record):**
 - Journal entries before M3 and CHANGELOG entries dated before the rename
