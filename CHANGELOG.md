@@ -493,3 +493,20 @@ Second Phase 2 collection module, added to `endpoint_deep` (now v0.2.0).
 - AV note: this module's persistence enumeration escalates the Defender ML
   false positive to `Trojan:Win32/Bearfoos.A!ml` (Severe). Documented in
   docs/LIMITATIONS.md; the flagged run still completed and verified.
+
+
+## 2026-06-12 — Scrollable summary screens
+
+Extends the form-scroll fix to the remaining non-interactive screens, so
+nothing clips on a terminal shorter than its content.
+
+- The confirm, collection-complete, and analyze-complete screens now render
+  inside a shared scroll viewport. Scroll via mouse wheel, PgUp/PgDn, arrows,
+  and Home/End; the proceed-keys (y/n/enter/esc/q) are unchanged and take
+  priority.
+- Each screen's keybinding hint moved to a persistent footer outside the
+  scroll region, so it stays visible at any scroll position.
+- Content is set on screen entry (scrolled to top) and re-rendered on resize.
+- analyze-complete was the main beneficiary — its parser list grows with the
+  number of parsers and previously clipped on short terminals.
+- VM-verified on the Windows 11 VM.

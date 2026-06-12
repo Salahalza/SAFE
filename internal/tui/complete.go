@@ -14,10 +14,13 @@ func (m model) updateComplete(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
+	if handled, cmd := m.scrollStatic(msg); handled {
+		return m, cmd
+	}
 	return m, nil
 }
 
-func (m model) completeView() string {
+func (m model) completeBody() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("Collection complete"))
@@ -46,9 +49,6 @@ func (m model) completeView() string {
 	}
 	b.WriteString(fmt.Sprintf("%s  %d\n", labelStyle.Render("Artifacts: "), totalArtifacts))
 	b.WriteString(fmt.Sprintf("%s  %s\n", labelStyle.Render("Output:    "), r.CaseDir))
-
-	b.WriteString("\n")
-	b.WriteString(hintStyle.Render("Press Enter to close, or q to quit."))
 
 	return containerStyle.Render(b.String())
 }

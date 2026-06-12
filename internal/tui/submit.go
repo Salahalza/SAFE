@@ -25,10 +25,13 @@ func (m model) updateConfirm(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 	}
+	if handled, cmd := m.scrollStatic(msg); handled {
+		return m, cmd
+	}
 	return m, nil
 }
 
-func (m model) confirmView() string {
+func (m model) confirmBody() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("Review before collection starts"))
@@ -52,9 +55,6 @@ func (m model) confirmView() string {
 	b.WriteString("\n")
 	b.WriteString(successStyle.Render("Start collection now?"))
 	b.WriteString("\n")
-
-	hint := hintStyle.Render("\n[y] yes, start   |   [n / Esc] go back to edit   |   [Ctrl+C] quit")
-	b.WriteString(hint)
 
 	return containerStyle.Render(b.String())
 }

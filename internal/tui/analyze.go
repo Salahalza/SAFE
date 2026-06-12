@@ -93,10 +93,13 @@ func (m model) updateAnalyzeComplete(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 	}
+	if handled, cmd := m.scrollStatic(msg); handled {
+		return m, cmd
+	}
 	return m, nil
 }
 
-func (m model) analyzeCompleteView() string {
+func (m model) analyzeCompleteBody() string {
 	var b strings.Builder
 
 	b.WriteString(titleStyle.Render("Analysis complete"))
@@ -106,15 +109,13 @@ func (m model) analyzeCompleteView() string {
 		b.WriteString(errorStyle.Render("[x] Analyzer failed"))
 		b.WriteString("\n")
 		b.WriteString(m.analyzeErr.Error())
-		b.WriteString("\n\n")
-		b.WriteString(hintStyle.Render("Enter / Esc to go back   |   q to quit"))
+		b.WriteString("\n")
 		return containerStyle.Render(b.String())
 	}
 
 	r := m.analyzeResult
 	if r == nil {
-		b.WriteString("Analyzer returned no result.\n\n")
-		b.WriteString(hintStyle.Render("Enter / Esc to go back   |   q to quit"))
+		b.WriteString("Analyzer returned no result.\n")
 		return containerStyle.Render(b.String())
 	}
 
@@ -176,9 +177,6 @@ func (m model) analyzeCompleteView() string {
 			b.WriteString("\n")
 		}
 	}
-
-	b.WriteString("\n")
-	b.WriteString(hintStyle.Render("Enter / Esc to go back to the menu   |   q to quit"))
 
 	return containerStyle.Render(b.String())
 }

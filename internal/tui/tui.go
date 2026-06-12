@@ -162,6 +162,13 @@ type model struct {
 	// form. Content is refreshed on every form update; see refreshFormViewport.
 	formViewport viewport.Model
 
+	// staticVP is a shared scroll container for the non-interactive summary
+	// screens (confirm, complete, analyze-complete), so their content scrolls
+	// instead of clipping on short terminals. Only one of those screens is
+	// shown at a time, so they can share one viewport. Content is set when the
+	// screen is entered and on resize; see setStaticContent.
+	staticVP viewport.Model
+
 	// Terminal dimensions (set by WindowSizeMsg)
 	termWidth  int
 	termHeight int
@@ -177,6 +184,7 @@ func initialModelWithRunner(registry ProfileLookup, r Runner, analyzeFn Analyzer
 		analyzePicker: newCaseFolderPicker(),
 		reportPicker:  newCaseFolderPicker(),
 		formViewport:  viewport.New(80, 20),
+		staticVP:      viewport.New(80, 20),
 	}
 }
 
@@ -198,6 +206,7 @@ func initialModel() model {
 		screen:       screenWelcome,
 		form:         newFormModel(),
 		formViewport: viewport.New(80, 20),
+		staticVP:     viewport.New(80, 20),
 	}
 }
 
@@ -228,6 +237,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.screen == screenForm {
 			m.refreshFormViewport(true)
 		}
+		// Re-render the active static summary screen at the new width.
+		if body, ok := m.currentStaticBody(); ok {
+			m.setStaticContent(body)
+		}
 		// If the report viewport already exists, resize it.
 		if m.reportData != nil {
 			vpHeight := sz.Height - 3
@@ -257,6 +270,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		r := ev.result
 		m.collectionResult = &r
 		m.screen = screenComplete
+		m.setStaticContent(m.completeBody())
+		m.staticVP.GotoTop()
 		return m, nil
 	case progressDoneMsg:
 		return m, nil
@@ -264,6 +279,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.analyzeResult = ev.result
 		m.analyzeErr = ev.err
 		m.screen = screenAnalyzeComplete
+		m.setStaticContent(m.analyzeCompleteBody())
+		m.staticVP.GotoTop()
 		return m, nil
 	case reportLoadedMsg:
 		m.reportData = ev.data
@@ -349,17 +366,17 @@ func (m model) View() string {
 	case screenForm:
 		return m.formViewerView()
 	case screenConfirm:
-		return m.confirmView()
+		return m.staticView("[y] yes, start   |   [n / Esc] go back to edit   |   PgUp / PgDn / wheel scroll   |   Ctrl+C quit")
 	case screenProgress:
 		return m.progress.View()
 	case screenComplete:
-		return m.completeView()
+		return m.staticView("Enter to close   |   q to quit   |   PgUp / PgDn / wheel scroll")
 	case screenAnalyzePicker:
 		return m.analyzePickerView()
 	case screenAnalyzeProgress:
 		return m.analyzeProgressView()
 	case screenAnalyzeComplete:
-		return m.analyzeCompleteView()
+		return m.staticView("Enter / Esc to go back to the menu   |   q to quit   |   PgUp / PgDn / wheel scroll")
 	case screenReportPicker:
 		return m.reportPickerView()
 	case screenReportViewer:

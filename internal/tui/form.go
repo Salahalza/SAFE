@@ -176,6 +176,8 @@ func (m model) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				m.form.errMessage = ""
 				m.screen = screenConfirm
+				m.setStaticContent(m.confirmBody())
+				m.staticVP.GotoTop()
 				return m, nil
 			}
 			m.form.nextField()
