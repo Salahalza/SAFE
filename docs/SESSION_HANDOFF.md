@@ -11,21 +11,31 @@ to load context.
 
 ## Where We Are
 
-Phase 1 is complete. The migration sessions are all done: M1 (ASCII
-fallback + analyze-flow testing), M2 (README restructure), and M3
-(SAHM → SAFE rename). The project is now named **SAFE** end to end —
-Go module `safe`, `cmd/safe/`, `C:\safe_shadow_*`, regenerated TUI
-banner, all docs. The next work is Phase 2 module development.
+Phase 1 is complete and **Phase 2 has begun** (session 2026-06-12d). The
+migration sessions are all done: M1 (ASCII fallback + analyze-flow testing),
+M2 (README restructure), and M3 (SAHM → SAFE rename). The project is named
+**SAFE** end to end — Go module `safe`, `cmd/safe/`, `C:\safe_shadow_*`,
+regenerated TUI banner, all docs.
+
+First Phase 2 module shipped: `extended_event_channels` (bulk-copies the
+full `winevt\Logs` set via VSS), hosted in a new interim `endpoint_deep`
+profile. VM-verified. The new-case TUI form was also made scrollable and its
+profile selector turned into a wrapping vertical list.
 
 **What works:**
 - Collection via `safe --tui` or CLI flags
+- Two profiles: `rapid_triage` (9 modules) and `endpoint_deep` (interim
+  v0.1.0 — rapid_triage superset + extended_event_channels)
 - Analysis via `safe --analyze <case-folder>` or TUI Option 2
 - Report viewing via TUI Option 3 (structured, scrollable, viewport-based)
+- New-case form scrolls (mouse wheel / PgUp / PgDn / focus-follow); profile
+  options render as a width-aware vertical list
 - VSS shadow management with orphan cleanup
 - IR# / CSI# case metadata fields
 - Bulk vs primary artifact distinction
-- 9 collection modules: process, network, system metadata, event logs,
-  registry, persistence, amcache, user hives, prefetch
+- 10 collection modules: process, network, system metadata, event logs,
+  registry, persistence, amcache, user hives, prefetch, extended event
+  channels
 - 2 analyzer parsers: UserAssist, Prefetch
 - Block-letter SAFE banner on welcome screen
 
@@ -40,18 +50,29 @@ banner, all docs. The next work is Phase 2 module development.
 
 ## Immediate Next Steps
 
-Phase 1 and all migration loose ends are closed. **Phase 2 begins next.**
+Phase 2 is underway. See docs/PLAN.md for the full phase breakdown and
+docs/ROADMAP.md for session-level estimates.
 
-### Phase 2 — Extended collection
-See docs/PLAN.md for the full phase breakdown and docs/ROADMAP.md for
-session-level estimates.
+**Phase 2 modules:**
+1. `extended_event_channels` — full winevt/Logs (bulk pattern) — **DONE**
+   (2026-06-12d), in `endpoint_deep`.
+2. `process_memory_inspection` — targeted process memory regions — NOT
+   started. This is the contentious one (loud, EDR-visible, brushes the
+   quiet-visitor principle); roadmap 2.1 is a design session for it.
+3. `extended_persistence` — BAM, COM hijacks, more service registries —
+   NOT started. The other quiet win.
 
-**Phase 2 modules to build:**
-1. `process_memory_inspection` — targeted process memory regions
-2. `extended_event_channels` — full winevt/Logs (bulk artifact pattern)
-3. `extended_persistence` — BAM, COM hijacks, more service registries
+**Pick next:** design `process_memory_inspection` (have the quiet-visitor
+debate) or build `extended_persistence` as the next low-risk module.
+
+**Smaller follow-up available:** extend the scroll viewport to the remaining
+tall TUI screens (`confirm`, `complete`, `analyze-complete`), which can
+still clip on very short terminals.
 
 Phase 2 effort estimate: 6-10 sessions.
+
+**Build target:** cross-compile to `test-output/vm/safe.exe` (the directory
+the VM reads), not the repo root.
 
 ---
 
