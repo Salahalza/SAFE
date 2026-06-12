@@ -423,3 +423,233 @@ the IR community.
 
 **Workaround until resolved:** Modules gracefully report locked-file failures
 as warnings, do not falsely claim success.
+
+
+
+## Output path ownership
+
+Date: 2026-06-03
+
+Currently each Parser implementation chooses its own output subdirectory
+within lab_report/ (UserAssistParser writes to lab_report/userassist/,
+PrefetchParser writes to lab_report/prefetch/). This pattern works while
+parsers are independent.
+
+When we eventually want cross-source synthesis (e.g., a combined timeline
+parser that draws on UserAssist, Prefetch, AmCache, event logs at once),
+the current pattern needs revision — either by passing output path via the
+analyzer Run() function and the Parser interface, or by introducing a
+separate orchestration layer above parsers.
+
+Not a blocker. The current pattern is fine for v1.0. Revisit when the first
+multi-source parser is needed.
+
+
+## Interactive Report Viewer
+
+Date: 2026-06-03
+
+The current TUI report viewer (Interpretation B) renders the case_report.txt
+as a styled, scrollable view. It is read-only with no navigation between
+sections beyond linear scroll.
+
+A more capable viewer (Interpretation C) would add interaction:
+- Focus model: Tab/Shift+Tab between sections
+- Collapse/expand: individual sections show summaries that expand to full detail
+- Section jumping: keyboard shortcut to jump directly to "Modules", "Totals", etc.
+- Possibly inline search across the report
+
+This is real work — likely a full session of design and implementation,
+plus iteration. Deferred until Interpretation B is in use and we know
+which interactions are actually missed.
+
+
+
+---
+
+## Parser approach (Phase 4)
+
+**Date opened:** 2026-06-10
+**Status:** Decided
+
+### Question
+Build parsers natively in Go, wrap external tools, or hybrid?
+
+### Decision
+Go-native, using mature Go libraries where they exist.
+
+### Reasoning
+- Single-binary deployment is essential
+- Wrapping external executables breaks deployment
+- Mature Go libraries (regparser, go-prefetch) exist for hardest formats
+- Native implementation gives full control over output format and edge
+  case handling
+- Claude Code accelerates iteration on native parsers
+
+### Specific library decisions
+- `velocidex/regparser` — registry, in use
+- `velocidex/go-prefetch` — Prefetch, in use
+- `velocidex/evtx` — EVTX, evaluate maturity before committing
+
+### Process
+1. Build native parser
+2. Test against real artifacts from VM
+3. If quality insufficient, evaluate libraries
+4. If library exists and is excellent, switch
+5. If library exists but has gaps, contribute upstream
+6. Document the choice in the parser's source file
+
+---
+
+## EVTX library evaluation (Phase 4)
+
+**Date opened:** 2026-06-10
+**Status:** Pending — to be resolved before EVTX parser work begins
+
+### Question
+Is `velocidex/evtx` mature enough for production use in SAFE? Or do we
+need to build native EVTX parsing or contribute heavily upstream?
+
+### Evaluation criteria
+- Handles all event log channels SAFE collects
+- Correctly parses XML serialization across Windows versions
+- Handles malformed records gracefully
+- Performance acceptable for large logs
+- Maintained or maintainable
+
+### Decision deadline
+Before Phase 4 EVTX work begins.
+
+---
+
+## Timeline format (Phase 5)
+
+**Date opened:** 2026-06-10
+**Status:** Decided
+
+### Question
+Custom SAFE timeline format or standardized format?
+
+### Decision
+Plaso supertimeline CSV format with SAFE-specific extensions.
+
+### Reasoning
+- Compatible with existing DFIR tooling
+- Saves SAFE from building viewers and query engines
+- Analysts already trained on this format
+- Extensions allow SAFE-specific data without breaking compatibility
+
+---
+
+## IOC extraction PDF library (Phase 6)
+
+**Date opened:** 2026-06-10
+**Status:** Pending — to be resolved before Phase 6 begins
+
+### Question
+Which Go PDF text extraction library to use?
+
+### Candidates
+- `github.com/unidoc/unipdf` — commercial license, very good quality
+- `github.com/ledongthuc/pdf` — MIT, simpler
+- `github.com/dslipak/pdf` — MIT, similar
+
+### Evaluation criteria
+- License compatibility
+- Extraction quality on real DFIR reports
+- Maintenance status
+- Memory footprint
+
+### Decision deadline
+Before Phase 6 ioc-extract subcommand work begins.
+
+---
+
+## IOC storage format (Phase 6)
+
+**Date opened:** 2026-06-10
+**Status:** Decided
+
+### Question
+STIX 2.x, MISP JSON, OpenIOC, or custom format?
+
+### Decision
+STIX 2.x JSON bundles.
+
+### Reasoning
+- OASIS official standard
+- Wide tool support
+- Future-proof for SAFE integration with external threat intel
+- Well-defined schema, validatable
+
+---
+
+## IOC defanging patterns (Phase 6)
+
+**Date opened:** 2026-06-10
+**Status:** Pending — needs research during Phase 6
+
+### Common patterns to handle
+- `1.2.3[.]4` — bracket dot
+- `evil[.]com` — bracket dot in domains
+- `hxxp://`, `hxxps://` — scheme replacement
+- `evil(.)com` — paren dot
+- `evil\.com` — escaped dot
+
+Vendors to study: CISA, Microsoft, Mandiant, CrowdStrike, Cisco Talos,
+Kaspersky, Trend Micro.
+
+---
+
+## Sigma rule compatibility (Phase 7)
+
+**Date opened:** 2026-06-10
+**Status:** Pending — needs research during Phase 7
+
+### Question
+How tightly does SAFE align with Sigma rule conventions?
+
+### Research needed
+- Survey SigmaHQ rule pack
+- Build mapping table: Sigma logsource → SAFE artifact type
+- Identify rule subset that applies natively
+- Document gaps where SAFE-native rules will be needed
+
+---
+
+## HTML viewer technology choice (Phase 8)
+
+**Date opened:** 2026-06-10
+**Status:** Pending — to be resolved at Phase 8 start
+
+### Candidates
+- Vanilla JS — smallest footprint, no build step
+- Alpine.js — minimal framework, no build step
+- Vue or React — more capable, build step required
+- HTMX — server-driven
+
+### Evaluation criteria
+- No external CDN dependencies
+- Single file or small bundle preferred
+- Maintainability for a Go-primary developer
+- Works with both file:// and `safe --serve`
+
+### Initial leaning
+Vanilla JS or Alpine.js for v1.
+
+---
+
+## Multi-case platform architecture (Phase 11)
+
+**Date opened:** 2026-06-10
+**Status:** Pending — deferred to Phase 11 entry
+
+### Considerations
+- Server: Go or Python
+- Database: SQLite or PostgreSQL
+- Authentication: built-in or delegate
+- Case storage: file system or object storage
+- Deployment: single binary, container, or installer
+
+### Resolution timing
+At Phase 11 entry. Don't pre-design.

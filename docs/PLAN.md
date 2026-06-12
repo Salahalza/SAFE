@@ -1,345 +1,338 @@
-# SAHM v1.0 Master Plan
+# SAFE/SAHM Development Plan
 
-This document is the single source of truth for what SAHM v1.0 is, what it
-contains, and how we get there. Updated as decisions are made.
+Last updated: 2026-06-10
+Status: Phase 1 complete. Phases 2-12 defined.
 
-If something is in this document, it's a commitment. If something is not in
-this document, it is either out of scope or deferred to v1.1+.
+This document describes the long-range development plan for SAFE (currently
+named SAHM in code; rename planned). Each phase is a meaningful chunk of
+work, typically spanning multiple development sessions.
 
-Companion documents:
-- [`PROFILES.md`](PROFILES.md) — profile design and module assignments
-- [`LIMITATIONS.md`](LIMITATIONS.md) — what SAHM intentionally does not do
-- [`DESIGN_QUESTIONS.md`](DESIGN_QUESTIONS.md) — open questions and resolution log
-- [`MODULES_REFERENCE.md`](MODULES_REFERENCE.md) — per-module command reference for IR team
-- [`../CHANGELOG.md`](../CHANGELOG.md) — development log
+For session-level planning, see `docs/ROADMAP.md`.
+For open design questions, see `docs/DESIGN_QUESTIONS.md`.
 
 ---
 
-## v1.0 Scope Commitment
+## Vision
 
-SAHM v1.0 is a self-contained Windows forensic acquisition platform that:
+SAFE is a Windows forensic acquisition and analysis platform for incident
+response. The target user is the IR analyst working a real case, often at
+incident scene, who needs:
 
-1. **Collects evidence in the field** with four profiles tuned to specific
-   case types (rapid_triage, endpoint_deep, domain_controller, server_role).
+- Fast, reliable evidence collection
+- Parsed, analyst-ready output
+- Timeline reconstruction
+- Threat intelligence integration
+- Automated detection against known IOCs and behaviors
+- A unified workflow rather than juggling 5-10 separate tools
 
-2. **Matches KAPE SANS Triage artifact coverage** for endpoint and server
-   targets. Every artifact category KAPE collects, SAHM collects. Implemented
-   in native Go without bundling third-party binaries.
-
-3. **Parses collected artifacts in the lab** via a separate analysis mode
-   (`sahm --analyze`). Native parsers for major artifact types. When SAHM's
-   parsers cannot handle a specific case, EZ Tools serve as fallback. Over
-   time, SAHM parser coverage approaches 100%.
-
-4. **Produces tamper-evident output** with full SHA-256 manifest chains,
-   per-module integrity records, and offline verification (`sahm --verify`).
-
-5. **Provides an analyst-friendly workflow** via both CLI flags and an
-   interactive TUI with progress display.
+SAFE is opinionated. It is not trying to replace Velociraptor, KAPE, or
+commercial EDR forensics modes. It is designed for specific regional and
+team workflows with bilingual identity (سيف / SAFE), single-binary
+deployment, and emphasis on what an IR analyst actually does day-to-day.
 
 ---
 
-## Profile Design
+## Architectural Principles (Reminders)
 
-See `PROFILES.md` for full detail. Summary:
+These come from CLAUDE.md and apply across all phases:
 
-### rapid_triage (built, evolving)
-Fast first-touch on unknown targets. ~60-90 seconds. Solid foundation —
-not minimal. Includes the high-value execution-history artifacts (AmCache,
-UserAssist, Prefetch, NTUSER/UsrClass hives) so even the rapid profile
-provides meaningful forensic value.
-
-### endpoint_deep (designing now)
-Comprehensive workstation and single-server collection. Matches KAPE
-SANS_Triage coverage. Memory inspection integrated. Several minutes runtime.
-
-### domain_controller (planned)
-AD-specific collection for domain compromise investigations.
-
-### server_role (planned)
-Per-role detection and collection for IIS, Exchange, MSSQL, SharePoint,
-File Server.
+1. **Strict collection/analysis separation** — collection on target, parsing in lab
+2. **Order of volatility** — most volatile first within profiles
+3. **Shared VSS shadow per case** — one shadow, modules share it
+4. **Bulk vs primary artifact distinction** — clarity in artifact counts
+5. **Hash everything, manifest everything** — integrity contract
+6. **Quality over speed** — never ship something half-correct
+7. **Single-binary deployment** — Go-native, no runtime dependencies
+8. **Unified parsing approach** — Go libraries where excellent, Go-native otherwise
 
 ---
 
-## Artifact Coverage Commitment
+## Phase 1 — COMPLETE
 
-SAHM v1.0 collects, at minimum, the following artifact categories with full
-KAPE SANS_Triage parity. Some appear in rapid_triage, others in endpoint_deep,
-others in role-specific profiles. The categorization is per `PROFILES.md`.
+### Goal
+Establish the foundation. Rapid triage profile, basic analyzer infrastructure,
+TUI for collection and viewing.
 
-### Execution history
-- ShimCache (Application Compatibility Cache) — registry-derived
-- AmCache.hve — file copy + hive content
-- UserAssist — registry-derived, per user
-- Prefetch (.pf files) — directory copy
-- Background Activity Moderator (BAM) — registry-derived
-- Session Manager AppCompatFlags — registry-derived
+### Delivered
+- 9 collection modules
+- 2 analyzer parsers (UserAssist, Prefetch)
+- VSS shadow management with orphan cleanup
+- IR# / CSI# case metadata
+- Bulk vs primary artifact distinction
+- TUI with three-option welcome, filepicker, analyze flow, structured
+  report viewer
+- Manifest infrastructure
+- Block-letter banner, status badges, styled cards
 
-### User activity
-- Jump Lists (AutomaticDestinations + CustomDestinations) — per user
-- LNK files in Recent folders — per user
-- ShellBags — registry-derived from NTUSER and UsrClass
-- RecentDocs — registry-derived, per user
-- Office MRU files — registry-derived, per user
-- TypedURLs — registry-derived, per user
-- PowerShell history files (ConsoleHost_history.txt) — per user
-
-### Registry
-- SAM, SYSTEM, SOFTWARE, SECURITY, DEFAULT hives + transaction logs
-- NTUSER.DAT per user + transaction logs
-- UsrClass.dat per user + transaction logs
-- Amcache.hve + transaction logs
-- All registry transaction logs (.LOG1, .LOG2 files)
-
-### Filesystem
-- $MFT (raw NTFS read)
-- $J (USN Journal — raw NTFS read)
-- $LogFile (NTFS transaction log — raw NTFS read)
-- $Boot, $Bitmap, $Secure (NTFS metadata — raw NTFS read)
-- BCD (Boot Configuration Data)
-
-### Event logs
-- All channels in C:\Windows\System32\winevt\Logs (full directory)
-- Not selective filtering — collect everything, let lab analysis filter
-
-### Scheduled tasks
-- C:\Windows\System32\Tasks (XML definitions)
-- C:\Windows\Tasks (legacy)
-- Scheduled task registry keys
-
-### Process and network state
-- Running processes with full command-line, parent PID, executable path
-- Network connections (TCP/UDP), with owning process
-- Network configuration (adapters, routes, ARP, DNS cache, hosts file)
-- Process memory inspection (RWX regions, loaded module integrity, suspicious
-  strings, handles, tokens)
-
-### Persistence locations
-- Run/RunOnce (all variants: HKLM, HKCU, Wow6432Node)
-- Winlogon keys
-- Image File Execution Options
-- AppInit_DLLs, AppCertDLLs
-- COM hijacking locations (HKLM and HKCU CLSID InprocServer32)
-- LSA packages and notification packages
-- Office persistence (Outlook plugins, COM addins, Office Test)
-- PowerShell profile scripts
-- Active Setup
-- Shell extensions
-- Netsh helpers
-- BITS jobs
-- Time providers
-- Print processors
-- Boot Execute
-- WMI event subscriptions (consumers, filters, bindings)
-
-### Browser artifacts
-- Chrome / Chromium-based browsers (Edge, Brave, Opera, Vivaldi)
-- Firefox
-- Internet Explorer / Edge Legacy (WebCacheV01.dat, TypedURLs)
-- History, downloads, cookies (path only, not decoded), login data,
-  bookmarks, extensions
-
-### Server-role specific (in server_role profile)
-- IIS: web server logs, application pool config, bindings, web.config files,
-  installed modules
-- Exchange: message tracking logs, transport logs, role configuration,
-  Exchange event channels, mailbox database paths
-- MSSQL: error logs, audit logs, SQL Agent jobs, linked servers, failed
-  login attempts, database paths
-- SharePoint: ULS logs, IIS logs for SharePoint, configuration database
-  connection info
-- File Server: SMB share inventory, share permissions, file access events
-  (5145), FSRM config
-
-### Domain controller specific (in domain_controller profile)
-- NTDS.dit handling via VSS snapshot
-- SYSVOL inventory (listing with hashes)
-- GPO inventory and recent modifications
-- FSMO role identification
-- AD replication metadata
-- Domain trust information
-- Directory Service event channel
-- DNS Server event channel (if AD-integrated)
-- Kerberos KDC events
+### Status: SHIPPED
 
 ---
 
-## Lab Analysis Mode
+## Phase 2 — Extended Collection
 
-`sahm --analyze <case-folder>` reads a collected case and produces parsed
-analyst-ready output in a `lab_report/` subdirectory inside the case folder.
+**Goal:** Expand collection coverage beyond rapid_triage.
 
-**Architecture:** Parsers implement the `Parser` interface defined in
-`internal/analyzer/analyzer.go`. The analyzer's `Run()` function accepts
-a case folder path and a parser registry, executes each parser, and writes
-outputs to `<case-folder>/lab_report/<parser-name>/`. Each parser reads only
-from the case folder, never from the live system. This means lab analysis
-runs entirely on the analyst's workstation, fully offline.
+**Modules to build:**
+- `process_memory_inspection` — Targeted process memory regions
+- `extended_event_channels` — Bulk-collect full winevt/Logs
+- `extended_persistence` — BAM/DAM, COM hijacks, more service registries
 
-**Status (29 May 2026):**
-- Analyzer infrastructure: BUILT (`internal/analyzer/analyzer.go`)
-- UserAssist parser: BUILT (`internal/analyzer/userassist.go`), produces
-  per-user CSV from collected NTUSER.DAT hives.
-- All other parsers below: PLANNED.
+**Profile updates:** `endpoint_deep` profile gets defined.
 
-### Native parsers (committed for v1.0 or shortly after)
-SAHM will ship native Go parsers for the following artifact types. Parser
-quality target: 95%+ coverage of cases the team handles. Edge cases fall
-back to EZ Tools manually until SAHM's parser is improved.
-
-- Prefetch (.pf files) — equivalent to PECmd
-- AmCache.hve — equivalent to AmCacheParser
-- ShimCache (from SYSTEM hive) — equivalent to AppCompatCacheParser.
-  **Note:** ShimCache binary format varies significantly across Windows
-  versions and is not publicly documented. Multi-version parser support
-  requires meaningful research effort. For SAHM v1.0, the SYSTEM hive is
-  collected by rapid_triage; analyst runs AppCompatCacheParser externally
-  against the collected hive until native support is built.
-- UserAssist (from NTUSER.DAT) — registry parser + ROT13 decode
-- Jump Lists (.automaticDestinations-ms, .customDestinations-ms) — equivalent to JLECmd
-- ShellBags (from NTUSER.DAT and UsrClass.dat) — equivalent to SBECmd
-- LNK files — equivalent to LECmd
-- $MFT — equivalent to MFTECmd
-- $J (USN Journal) — equivalent to MFTECmd
-- Event logs (.evtx) — equivalent to EvtxECmd
-- Registry hive generic reader — equivalent to RECmd
-
-### Fallback workflow
-When SAHM's parser fails or produces uncertain output on a specific artifact,
-the analyst runs the equivalent EZ Tool manually. SAHM's `lab_report/` records
-which artifacts were parsed natively and which need external review. This
-keeps the lab workflow honest.
-
-### Parser improvement loop
-When a case forces fallback to EZ Tools, the analyst flags the failing
-artifact via a new issue in the SAHM repo. Native parser is improved.
-SAHM coverage gradually approaches 100% over time.
-
-### Timing for lab analysis mode
-Not pinned to v1.0 release. Designed alongside collection work; revealed to
-stakeholders when appropriate (per management demo cadence). Implementation
-can run in parallel with later-phase collection profiles.
+**Estimated effort:** 6-10 Claude Code sessions.
 
 ---
 
-## Build Sequence (Updated)
+## Phase 3 — Browser Artifacts + Per-User Iteration
 
-Sequence is logical dependency order. Timeline
-estimates are realistic, not aggressive.
+**Goal:** Per-user artifact collection scaffolding and browser support.
 
-### Phase 1: Solid rapid_triage (May 2026)
-Status: COMPLETE.
+**Modules to build:**
+- `per_user_iteration` — Infrastructure for per-user sub-modules
+- `browser_artifacts` — Chrome, Edge, Firefox per-user
+- `jump_lists` — Per-user jump list collection
 
-Tier 1 execution-history artifacts added to rapid_triage:
-- AmCache hive copy (amcache_collection module, VSS-based)
-- NTUSER.DAT and UsrClass.dat copies per user (user_hives_collection module,
-  VSS-based, gives ShellBags + RecentDocs as bonus when parsed in lab)
-- Prefetch directory copy (prefetch_collection module, VSS-based)
-
-Mid-Phase-1 refactor (29 May 2026): strict collection/analysis separation
-adopted. UserAssist parsing moved from collection-side module to analyzer-
-side parser (see "Lab Analysis Mode" below). ShimCache parsing removed
-from Phase 1 entirely; deferred to lab analysis mode once multi-version
-format support is built (see "Out of Scope" below for current limitations).
-
-Profile bumped to v0.2.0 to reflect the architectural shift and module
-reordering for order of volatility.
-
-Actual outcome: rapid_triage runtime ~30s on test VM, ~500 artifacts
-collected. Forensic value significantly increased over the original
-6-module baseline.
-
-### Phase 2: endpoint_deep foundation (June 2026)
-- process_memory_inspection module (RWX region detection first)
-- Extended event channels (full winevt/Logs directory copy)
-- Extended persistence locations (COM hijacking, AppCertDLLs, etc.)
-- Per-user iteration via pathfinder (Jump Lists, LNK files, browser paths)
-
-### Phase 3: endpoint_deep completion (June-July 2026)
-- Browser artifacts (Chrome/Edge, Firefox, IE/Edge Legacy)
-- ShimCache parsing (binary format parser)
-- Process memory deeper inspection (loaded module integrity, suspicious
-  strings, handles, tokens)
-
-### Phase 4: Raw NTFS access (July 2026)
-- $MFT extraction
-- $J USN Journal extraction
-- $LogFile, $Boot, $Bitmap, $Secure
-- This is the hardest implementation work. Likely multi-session.
-
-### Phase 5: domain_controller (July-August 2026)
-- NTDS.dit safe extraction (VSS snapshot approach)
-- AD-specific event channels
-- SYSVOL inventory
-- GPO inventory
-- FSMO and trust enumeration
-
-### Phase 6: server_role (August-September 2026)
-Build in priority order:
-1. IIS (web server logs, configuration, bindings)
-2. Exchange (transport logs, message tracking, role config)
-3. MSSQL (error logs, audit, SQL Agent jobs)
-4. SharePoint (ULS logs, configuration)
-5. File Server (share inventory, ACLs, access events)
-
-### Phase 7: Lab analysis mode (parallel work)
-Can begin any time after Phase 2. Native parsers added incrementally as
-collection capabilities mature. First parsers to build: Prefetch, AmCache,
-UserAssist (simplest formats, highest value).
-
-### Phase 8: Release preparation (September 2026 or later)
-- Code signing certificate procurement (start in May, lead time matters)
-- Gold master process formalization
-- Validation suite (minimum viable: regression tests against reference VM)
-- Two canary SSD deployment
+**Estimated effort:** 4-6 Claude Code sessions.
 
 ---
 
-## Timeline Discipline
+## Phase 4 — Parser Expansion
 
-The above sequence is the order things should
-be built, not when they must be done. Slippage to later phases is acceptable
-if work quality is maintained.
+**Goal:** Every collected artifact has a corresponding analyzer parser.
 
-- Not late-night-coding through scope decisions
-- Documenting every deferred item in DESIGN_QUESTIONS.md
-- Committing complete working state to git frequently
+**Approach:** Go-native parsers, using mature Go libraries where they're
+already excellent. Single-binary deployment preserved.
 
+**Libraries:**
+- `velocidex/regparser` — registry (in use)
+- `velocidex/go-prefetch` — Prefetch (in use)
+- `velocidex/evtx` — EVTX (evaluate maturity first)
+
+**Parsers to build (priority order):**
+1. Event log parser (EVTX) — highest analyst value
+2. AmCache parser
+3. ShellBags parser
+4. ShimCache (AppCompatCache) parser
+5. Jump Lists parser
+6. Browser history parser (SQLite-based, simpler)
+7. Scheduled Tasks XML parser
+8. BAM/DAM parser
+9. WMI persistence parser (hardest)
+
+**Quality bar:** If a native parser cannot achieve excellent output:
+1. Check if a Go library exists and is mature enough
+2. If yes, switch to library, contribute upstream where useful
+3. If no, document the gap and consider deferring
+
+**Estimated effort:** 20-30 Claude Code sessions.
 
 ---
 
-## Out of Scope (Hard Limits)
+## Phase 5 — Timeline Generation
 
-The following will not be in v1.0 and not in v1.1 either. Documented in
-LIMITATIONS.md with rationale:
+**Goal:** Unified chronological timeline of all parsed events.
 
-- Full physical memory acquisition (use WinPmem separately)
-- Full disk imaging (use FTK Imager separately)
-- Kernel-mode forensics (use Volatility on external memory dumps)
-- Network packet capture (use Wireshark separately)
-- Cross-platform support (Windows only)
-- Cloud forensics
-- Mobile forensics
-- Network-based collection (offline-first design)
+**Approach:** Output in plaso supertimeline CSV format. Industry standard.
+Compatible with Timeline Explorer, ELK/Splunk ingestion, every DFIR
+analyst's existing workflow.
+
+**Format:**
+```
+date,time,timezone,MACB,source,sourcetype,type,user,host,short,desc,version,filename,inode,notes,format,extra
+```
+
+SAFE-specific data goes in `extra` column as key=value pairs.
+
+**Deliverables:**
+- Timeline aggregator in `internal/analyzer/timeline/`
+- Each parser contributes events
+- Single `timeline.csv` written to `lab_report/`
+- Source attribution on every event
+
+**Estimated effort:** 3-5 Claude Code sessions.
 
 ---
 
-## Open Strategic Questions
+## Phase 6 — IOC Infrastructure
 
-These need answers as the project progresses, not blocking decisions now:
+**Goal:** Ingest threat intelligence from public DFIR reports (PDFs).
 
-1. **Parser independence target.** When does SAHM stop relying on EZ Tools
-   for fallback? Realistic target: by v2.0, native parser coverage exceeds
-   99% across all artifact types.
+### Components
 
-2. **Distribution model.** Self-contained sahm.exe is current design.
-   Eventually may need an installer for the lab analysis mode if it grows
-   complex enough.
+#### `safe ioc-extract` subcommand
+Takes a PDF, produces a STIX 2.x bundle.
 
-3. **Internal vs broader release.** SAHM is internal to your IR team now.
-   Future decision: do you open source it? Sell it? Keep proprietary?
-   Each path has different obligations.
+Pipeline:
+1. PDF → text via Go-native PDF extraction
+2. Text → IOC candidates via regex extraction
+3. Defanging detection and re-fanging
+4. Validation layer (RFC1918, well-known services, false positive filters)
+5. Context preservation (surrounding sentence)
 
-4. **Demo cadence.** Management demos at meaningful milestones, not on
-   fixed schedule. Build in private until each phase is ready to show.
+Output: STIX 2.x JSON bundle in `safe-iocs/<pack-name>.json`
+
+#### IOC pack storage
+- Directory: `safe-iocs/` next to binary, or configurable
+- Format: STIX 2.x JSON bundles
+- Pack metadata: source PDF, extraction date, confidence, vendor
+
+#### IOC loading at analysis time
+- Analyzer loads all packs at analysis time
+- Builds in-memory index for fast lookup during detection
+- Pack confidence weights propagate to detection findings
+
+**Quality requirements:** High standard, essential. False positive rate
+documented and below acceptable threshold.
+
+**Estimated effort:** 8-12 Claude Code sessions.
+
+---
+
+## Phase 7 — Detection Engine
+
+**Goal:** Automated detection against parsed artifacts.
+
+### Three-tier architecture
+
+#### Tier 1: IOC matching
+Walk parsed artifacts, check fields against loaded IOC packs.
+- Severity (from pack confidence)
+- IOC value and type
+- Artifact where matched
+- Source attribution
+
+#### Tier 2: Behavioral rules (Sigma compatibility)
+Sigma is the industry standard. SAFE imports SigmaHQ rules where they
+apply to SAFE's parsed artifact types.
+
+Expected coverage from SigmaHQ:
+- ~30-40% of rules apply directly to SAFE's event log output
+- ~20-30% apply with adaptation
+- ~30-40% don't apply (real-time data SAFE doesn't have)
+
+Also supports SAFE-native rules for things Sigma doesn't cover.
+
+#### Tier 3: Cross-artifact correlation (DEFERRED to Phase 11)
+Chains of events. Requires mature timeline + correlation engine.
+
+**Estimated effort (T1+T2):** 10-15 Claude Code sessions.
+
+---
+
+## Phase 8 — HTML Viewer
+
+**Goal:** Browser-based viewer that complements the TUI.
+
+**Approach:** Local-only HTML page reading case folder JSON.
+
+**Views:**
+- Header card with case metadata
+- At-a-glance summary
+- Modules table (sortable, filterable)
+- Observations grouped by module
+- Timeline view (visual, scrubable, filterable)
+- Detections view (IOC matches, Sigma findings)
+- Drill-down into individual artifacts
+
+**Architecture:**
+- Single self-contained HTML page (or small bundle)
+- Reads same JSON as TUI
+- `safe --serve <case-folder>` for browsers blocking file://
+- No external CDN dependencies (offline use)
+
+**Estimated effort:** 8-12 Claude Code sessions.
+
+---
+
+## Phase 9 — Domain Controller + Server Roles
+
+**Goal:** Specialized profiles for server forensics.
+
+**Profiles:**
+- `domain_controller` — NTDS.dit, DRSUAPI logs, Kerberos cache, GPO state
+- `server_role` — auto-detects roles, runs role-specific collection
+  (Exchange, MSSQL, SharePoint, IIS, File Server)
+
+**Why deferred to Phase 9:** Salah's caseload is server-heavy. Building
+this after parsing/timeline/detection means server artifacts immediately
+participate in the analyst workflow.
+
+**Estimated effort:** 6-10 Claude Code sessions.
+
+---
+
+## Phase 10 — Raw NTFS
+
+**Goal:** Direct NTFS structure access: `$MFT`, `$J`, `$LogFile`.
+
+**Challenges:** Raw disk access, complex binary formats, large output,
+high AV/EDR visibility.
+
+**Estimated effort:** 8-12 Claude Code sessions.
+
+---
+
+## Phase 11 — Detection Tier 3 + HTML Platform (B)
+
+**Goal:** Cross-artifact correlation; multi-case platform.
+
+**Tier 3 correlation:** Chains of events across artifacts.
+
+**HTML platform (B):** Server component, multi-case storage,
+authentication, cross-case queries.
+
+**Estimated effort:** 15-25 Claude Code sessions.
+
+---
+
+## Phase 12 — Production Readiness
+
+**Goal:** Ship SAFE 1.0.
+
+**Deliverables:**
+- Code signing (authenticode)
+- Reproducible builds
+- Validation test suite
+- Performance benchmarks
+- Documented installation and deployment
+- Public-facing documentation (if going public)
+
+**Estimated effort:** 6-10 Claude Code sessions.
+
+---
+
+## Timeline Summary
+
+| Phase | Description | Sessions | Cumulative |
+|---|---|---|---|
+| 1 | Foundation (DONE) | — | — |
+| 2 | Extended collection | 6-10 | 6-10 |
+| 3 | Browser + per-user | 4-6 | 10-16 |
+| 4 | Parser expansion | 20-30 | 30-46 |
+| 5 | Timeline | 3-5 | 33-51 |
+| 6 | IOC infrastructure | 8-12 | 41-63 |
+| 7 | Detection (T1+T2) | 10-15 | 51-78 |
+| 8 | HTML viewer | 8-12 | 59-90 |
+| 9 | DC + servers | 6-10 | 65-100 |
+| 10 | Raw NTFS | 8-12 | 73-112 |
+| 11 | T3 + HTML platform | 15-25 | 88-137 |
+| 12 | Production | 6-10 | 94-147 |
+
+Total estimated sessions: **94-147** with Claude Code.
+
+At 3-5 focused sessions per week, this is **6-12 months** to SAFE 1.0
+(optimistic). Real number may be 12-24 months. Treat as direction, not
+contract.
+
+---
+
+## What This Plan Is Not
+
+- Not a contract — sessions and scope will adjust
+- Not exhaustive — small fixes not enumerated
+- Not parallel — phases are roughly sequential
+- Not a feature race — each phase serves analyst value, not feature parity
+
+SAFE is not trying to disrupt commercial DFIR tools. SAFE is being built
+as the IR tool Salah wishes existed for his actual work, with regional
+and team context shaping decisions. Hold that framing through development.
