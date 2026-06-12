@@ -632,6 +632,7 @@ func runAnalyzer(caseDir string) {
 	registry.Register(&analyzer.PrefetchParser{})
 	registry.Register(&analyzer.ProcessMemoryParser{})
 	registry.Register(&analyzer.ComHijackParser{})
+	registry.Register(&analyzer.WmiSubscriptionParser{})
 
 	lastLabel := ""
 	onProgress := func(frac float64, label string) {
@@ -684,5 +685,6 @@ func runAnalyzerFromTUI(caseDir string, onProgress func(frac float64, label stri
 	registry.Register(&analyzer.PrefetchParser{})
 	registry.Register(&analyzer.ProcessMemoryParser{})
 	registry.Register(&analyzer.ComHijackParser{})
+	registry.Register(&analyzer.WmiSubscriptionParser{})
 	return analyzer.RunWithProgress(caseDir, registry.All(), onProgress)
 }

@@ -706,3 +706,36 @@ report provenance.
   beginning with `=`/`+`/`-`/`@` is prefixed with a quote so it cannot execute
   when an analyst opens the CSV in Excel.
 - Report text truncation is now rune-aware (no split multibyte characters).
+
+
+
+## 2026-06-13 — Lab analyzer: wmi_subscriptions
+
+- New analyzer `wmi_subscriptions` — the last deferred Phase 2 lab item. Detects
+  WMI event-subscription persistence (MITRE T1546.003) from the three
+  `Get-CimInstance` listings persistence_core already captures on the target
+  (`wmi_event_consumers.txt`, `wmi_event_filters.txt`,
+  `wmi_filter_to_consumer_bindings.txt`). Collection is unchanged — the command
+  output is the artifact; all interpretation happens lab-side.
+- Parses the PowerShell `Format-List` text (multi-object blocks, wrapped-value
+  continuation), correlates each `__FilterToConsumerBinding` to its
+  `__EventFilter` and `EventConsumer`, and also surfaces orphan (unbound)
+  consumers/filters.
+- Triage tiers:
+  - **HIGH** — a live binding driving a code-executing consumer
+    (`CommandLineEventConsumer` / `ActiveScriptEventConsumer`). Windows ships none
+    of these by default, so a bound one is the high-confidence IOC. Rows are
+    enriched with LOLBin, encoded/obfuscated-command, suspicious-path, and
+    trigger-query flags.
+  - **NOTABLE** — a code-exec consumer that is staged (defined but unbound), any
+    non-baseline consumer, or a known-abused trigger query.
+  - **LOW** — the built-in log-only baseline (`NTEventLogEventConsumer`, e.g. the
+    default "SCM Event Log" subscription).
+- Outputs `lab_report/wmi_subscriptions/wmi_subscriptions.csv` + `summary.txt`.
+  CSV free-text columns use the shared `csvSafe` formula-injection guard.
+- Registered in the analyzer registry (CLI `--analyze` and TUI). Verified locally
+  against the real VM persistence_core baseline (1 LOW SCM subscription) and a
+  synthetic planted CommandLineEventConsumer (HIGH, all flags) + orphan
+  ActiveScriptEventConsumer (NOTABLE). With this, Phase 2 lab debt is cleared —
+  5 analyzer parsers now ship (UserAssist, Prefetch, process_memory, com_hijack,
+  wmi_subscriptions).
