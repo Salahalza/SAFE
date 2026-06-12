@@ -56,23 +56,26 @@ docs/ROADMAP.md for session-level estimates.
 **Phase 2 modules:**
 1. `extended_event_channels` — full winevt/Logs (bulk pattern) — **DONE**
    (2026-06-12d), in `endpoint_deep`.
-2. `process_memory_inspection` — targeted process memory regions — NOT
-   started. This is the contentious one (loud, EDR-visible, brushes the
+2. `extended_persistence` — BAM/DAM, service registry, LSA, and other ASEPs —
+   **DONE** (2026-06-12d), in `endpoint_deep` (now v0.2.0). COM hijacks
+   deferred to a future lab hive-parser.
+3. `process_memory_inspection` — targeted process memory regions — NOT
+   started. The contentious one (loud, EDR-visible, brushes the
    quiet-visitor principle); roadmap 2.1 is a design session for it.
-3. `extended_persistence` — BAM, COM hijacks, more service registries —
-   NOT started. The other quiet win.
 
 **Pick next:** design `process_memory_inspection` (have the quiet-visitor
-debate) or build `extended_persistence` as the next low-risk module.
-
-**Smaller follow-up available:** extend the scroll viewport to the remaining
-tall TUI screens (`confirm`, `complete`, `analyze-complete`), which can
-still clip on very short terminals.
+debate), build the deferred COM lab hive-parser, or extend the scroll
+viewport to the remaining tall TUI screens (`confirm`, `complete`,
+`analyze-complete`), which can still clip on very short terminals.
 
 Phase 2 effort estimate: 6-10 sessions.
 
-**Build target:** cross-compile to `test-output/vm/safe.exe` (the directory
-the VM reads), not the repo root.
+**Build:** use `make vm` → `test-output/vm/safe.exe` (the only folder the VM
+can access). NEVER build the exe to the repo root.
+
+**HARD RULE:** never upload/submit safe.exe or its source to any third-party
+internet service (VirusTotal, AV vendors, pastebins, etc.). Only destination
+is the project's own GitHub. See the opsec section in CLAUDE.md.
 
 ---
 

@@ -28,6 +28,24 @@ form display issues that surfaced once a second profile existed.
   (138 MB) in ~1.9s, status=success, manifest hashed all 192, report shows
   the bulk count as one dataset (Bulk files: 192, Artifacts: 0), `--verify`
   path intact. Salah confirmed the form wrapper renders well.
+- Second Phase 2 module `extended_persistence` (commit 2f707e3): 15 readable
+  `reg query` ASEP snapshots persistence_core doesn't cover (BAM/DAM, full
+  service registry, LSA, Session Manager, Netsh/Print/Time providers,
+  Winlogon, Active Setup, shell extensions, BHO). Reuses `queryRunKey` so
+  absent keys are info not errors. Added to `endpoint_deep` (now v0.2.0).
+  VM-verified: success, 15 artifacts, 0 errors, ~15s, BAM has real per-SID
+  execution data (28 exes), `--verify` OK (635 files).
+- Build-path root-cause fix (commit 25d0602): added a `Makefile` (`make vm`
+  -> `test-output/vm/safe.exe`) and pointed CLAUDE.md / SESSION_HANDOFF /
+  MIGRATION_PLAN at it. The exe kept landing in the repo root because the
+  docs themselves documented `go build -o safe.exe` (root). Now the path is
+  baked into the Makefile.
+- Hard operational-security rule (commit 45c4732): safe.exe and its source
+  must never be uploaded/submitted to any third-party internet service; the
+  only permitted internet destination is the project's own GitHub repo.
+  Prominent DO-NOT-VIOLATE section in CLAUDE.md. Also removed a conflicting
+  "submit to Microsoft/AV vendors" line from LIMITATIONS.md and documented
+  the new `Trojan:Win32/Bearfoos.A!ml` Defender false positive.
 
 ## What got decided
 
@@ -48,13 +66,26 @@ form display issues that surfaced once a second profile existed.
   ~1.9s VM run. Reason: the VM has near-empty logs (138 MB); a real server
   could be multi-GB. Salah chose maximum headroom over trimming.
 - **Build target is `test-output/vm/safe.exe`**, the directory the VM reads
-  from — not the repo root. Cross-compile straight there.
+  from — not the repo root. Now enforced via `make vm` (path baked into the
+  Makefile), not memory.
+- **extended_persistence scope: comprehensive ASEPs, readable reg-query
+  snapshots.** All its data is already in the raw SYSTEM/SOFTWARE/NTUSER
+  hives (registry_core + user_hives), so the module's value is triage-grade
+  readable snapshots — the same accepted overlap as event channels. COM
+  hijacks deferred to a future lab hive-parser (per-user CLSID isn't
+  reachable via on-target reg query).
+- **No external publication (Salah directive).** safe.exe and source never
+  leave the machine except to the project's own GitHub. This corrected an
+  earlier misread on my part (I first proposed denying my own web tools);
+  the rule is about not publishing the binary/source, not about tool access.
 
 ## What got punted
 
 - `process_memory_inspection` design (roadmap 2.1) — deferred; still the
   next contentious design debate. Tracked in ROADMAP.md / PLAN.md.
-- `extended_persistence` module (roadmap 2.4/2.5) — not started.
+- COM hijack surfacing — deferred to a future lab hive-parser (parses the
+  already-collected SOFTWARE/NTUSER hives); recorded in an
+  extended_persistence finding.
 - Other tall TUI screens (`confirm`, `complete`, `analyze-complete`) can
   still clip on very short terminals. Same viewport pattern will extend to
   them — tracked here and in CHANGELOG.
@@ -71,20 +102,31 @@ form display issues that surfaced once a second profile existed.
 - The form-clipping bug only became visible once a *second* profile existed
   — the single-profile form happened to fit. Adding endpoint_deep exposed
   both the horizontal profile-list overflow and the vertical form clipping.
+- The exe-in-root mistake had a documented root cause: CLAUDE.md and other
+  dev docs literally prescribed `go build -o safe.exe` (root). Fixing the
+  habit meant fixing the docs + a Makefile, not just "remember harder".
+- extended_persistence escalated the Defender ML false positive from
+  "Settings Modifier" (Contebrew) to "Trojan / Severe" (Bearfoos) — the
+  persistence enumeration reads as recon. Collection still completed and
+  verified cleanly; it's louder, not broken.
 
 ## What's next
 
-Continue Phase 2. Either design `process_memory_inspection` (the deferred
-2.1, with the quiet-visitor debate) or build `extended_persistence` as the
-next quiet win. Optionally extend the scroll viewport to the remaining tall
-TUI screens.
+Continue Phase 2. The remaining module is `process_memory_inspection`
+(roadmap 2.1) — the contentious quiet-visitor design debate. Or pick up the
+deferred COM lab hive-parser, or extend the scroll viewport to the remaining
+tall TUI screens (`confirm`/`complete`/`analyze-complete`).
 
 ## Notes for the next session
 
-- Don't re-litigate the Phase 2 resequencing or the endpoint_deep
-  superset/interim decision — both are deliberate (see "What got decided").
+- Don't re-litigate the Phase 2 resequencing, the endpoint_deep
+  superset/interim decision, or the extended_persistence-vs-raw-hives overlap
+  — all deliberate (see "What got decided").
 - The 20/45 budgets are a deliberate choice for server headroom, not an
   oversight — leave them unless a real large-log run says otherwise.
-- Cross-compile to `test-output/vm/safe.exe`, not the repo root.
-- The 8-channel overlap between extended_event_channels and eventlogs_core
-  is intentional; don't "fix" it with dedup.
+- Build with `make vm` (-> `test-output/vm/safe.exe`). NEVER build the exe to
+  the repo root — the VM can't reach it.
+- HARD RULE: never upload/submit safe.exe or its source anywhere on the
+  internet except the project's own GitHub (see CLAUDE.md opsec section).
+- The 8-channel overlap (extended_event_channels vs eventlogs_core) and the
+  COM-deferral are intentional; don't "fix" them.
