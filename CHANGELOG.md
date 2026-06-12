@@ -352,3 +352,33 @@ Several Phase 1 deliverables landed in one day.
 - Known limitation: rounded unicode borders and some severity icons fall back
   to '?' characters on plain Windows PowerShell. Follow-up commit will swap
   to ASCII-safe character set.
+
+
+## 2026-06-12 — Session M1: ASCII fallback for plain Windows PowerShell
+
+Closes the known limitation from 2026-06-10: the TUI now renders correctly
+on plain Windows PowerShell (legacy conhost), where Unicode glyphs showed
+as '?'. Verified end-to-end on the Windows 11 VM across all TUI flows.
+
+**ASCII character sweep across internal/tui/**
+- Card borders: RoundedBorder() -> NormalBorder() (sharp box-drawing maps to
+  the console codepage; rounded corners did not).
+- Severity and module-status icons -> bracketed scheme: [+] success,
+  [!] partial/critical, [x] failed, [-] skipped/default-severity, [?] unknown,
+  [i] info, [*] warning-severity.
+- Collection progress spinner: braille frames -> rotating ASCII | / - \.
+- Navigation/hint glyphs: arrow keys -> Up/Down/Left/Right, bullet separators
+  -> |, selection marker -> >, radio marker (•) -> (*).
+- Em-dashes in rendered strings -> hyphens (em-dashes in code comments left
+  as-is; they never reach the terminal).
+- The block-letter SAHM banner is unchanged (block characters render fine).
+
+**Two width fixes surfaced during VM testing**
+- Report viewer: the header card's right border was truncated. Root cause was
+  the bubbles viewport rendering content into (Width - HorizontalFrameSize)
+  and clipping anything wider via MaxWidth. initReportViewport now sizes the
+  report to that true inner width (derived from GetHorizontalFrameSize) so the
+  border fits.
+- Analyze view: long parser paths, findings, and stats overflowed the right
+  edge. They now wrap to the available width with a hanging indent, so no
+  forensic text (paths, finding messages) is lost.
