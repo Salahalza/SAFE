@@ -175,6 +175,30 @@ Initial scope: process enumeration with OpenProcess, RWX memory region
 detection. Subsequent sessions add loaded module integrity check, strings
 extraction, handle enumeration, token information.
 
+**2026-06-12 follow-up (collect-only refinement) — design session 2026-06-12e:**
+
+The "Initial scope" above describes RWX detection, integrity checks, and
+strings extraction *on the target*. That predates the collection/analysis split
+being treated as a load-bearing principle (CLAUDE.md Principle #1). The PMI
+design debate resolved this conflict:
+
+- **Collect-only on target.** The module dumps raw region bytes + region
+  metadata and makes zero interpretation. RWX classification, strings, PE-carve,
+  and any suspicious-region judgment move to a new lab-side `process_memory`
+  analyzer. Preserves Principle #1 and makes findings reproducible.
+- **Region filter (default):** committed + private (non-image/non-mapped) +
+  executable-or-RWX protection. A protection-flag scope filter, not content
+  analysis. Targets injected/unbacked code; image-backed code excluded
+  (recoverable from disk).
+- **Profile placement:** dedicated loud profile `memory_triage` AND composed
+  into `endpoint_deep` (v0.3.0). Never in `rapid_triage`. Opt-in, behind an
+  EDR-visible warning.
+- **Module-integrity diffing** is out of scope for the collect-only exec-private
+  artifact set (needs image-backed regions) — documented, not faked.
+
+Build-vs-buy (Option 4, native) is unchanged. Full texture in
+docs/journal/2026-06-12e-pmi-design.md.
+
 ---
 
 ## 2026-05-27: Convert Remaining reg query Usage to Registry API

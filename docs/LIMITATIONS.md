@@ -18,9 +18,12 @@ multi-year effort with significant compatibility, signing, and stability risk.
 Bundling third-party tools (WinPmem, Magnet RAM Capture, etc.) was considered
 and deferred pending review of organizational policy on third-party software.
 
-**What SAFE provides instead:** SAFE v1.0 includes per-process memory
-inspection (see `process_memory_inspection` module), which covers the majority
-of IR scenarios involving memory analysis without requiring kernel access.
+**What SAFE provides instead (planned):** SAFE v1.0 is planned to include
+collect-only per-process memory inspection (the `process_memory_inspection`
+module, designed 2026-06-12e, not yet implemented), which covers the majority
+of IR scenarios involving memory analysis without requiring kernel access. The
+module dumps raw memory regions on the target; all interpretation happens
+lab-side in the `process_memory` analyzer.
 
 **For cases requiring full memory acquisition:** Run WinPmem, Magnet RAM
 Capture, or FTK Imager separately, in parallel with SAFE. SAFE's case folder
@@ -33,8 +36,17 @@ the case folder and re-run `safe --verify` to include it in the manifest.
 - Analysis of malware that runs entirely in non-paged kernel pool
 - Memory of protected processes (LSASS in newer Windows, AV processes, PPL)
 
-**What we keep:** Per-process memory inspection covers approximately 80% of
-real-world IR cases involving memory analysis, in our assessment.
+**What we keep (once implemented):** Per-process memory inspection is expected
+to cover approximately 80% of real-world IR cases involving memory analysis, in
+our assessment.
+
+**A note on noise:** PMI is by design the loudest module SAFE will ship. It
+reads process memory via `OpenProcess` / `ReadProcessMemory`, which EDR hooks
+specifically. On an EDR-protected target it may be flagged or outright blocked,
+and handles may be revoked mid-read. That produces a `partial` result, which is
+the correct, expected behavior — not a defect. For this reason PMI never runs
+in `rapid_triage`; it is opt-in only, in the `endpoint_deep` and dedicated
+`memory_triage` profiles, behind an EDR-visible warning.
 
 ---
 
@@ -75,11 +87,12 @@ different operational model better served by other tools.
 
 ## Memory-Only Threats Without Disk Artifacts
 
-**Status:** Partially addressed by `process_memory_inspection` module.
+**Status:** To be addressed by the planned `process_memory_inspection` module
+(designed 2026-06-12e, not yet implemented).
 
 **Rationale:** Threats that exist entirely in memory and never write to disk
-require memory-based detection. SAFE's per-process inspection catches most
-such threats running in user-mode. Kernel-only memory-resident threats remain
+require memory-based detection. SAFE's planned per-process inspection will catch
+most such threats running in user-mode. Kernel-only memory-resident threats remain
 out of scope per the kernel-mode limitation above.
 
 ---

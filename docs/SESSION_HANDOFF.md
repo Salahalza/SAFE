@@ -61,13 +61,17 @@ docs/ROADMAP.md for session-level estimates.
 2. `extended_persistence` — BAM/DAM, service registry, LSA, and other ASEPs —
    **DONE** (2026-06-12d), in `endpoint_deep` (now v0.2.0). COM hijacks
    deferred to a future lab hive-parser.
-3. `process_memory_inspection` — targeted process memory regions — NOT
-   started. The contentious one (loud, EDR-visible, brushes the
-   quiet-visitor principle); roadmap 2.1 is a design session for it.
+3. `process_memory_inspection` — per-process memory regions — **DESIGNED**
+   (2026-06-12e, journal). Resolved to a **collect-only** design: on-target
+   dumps raw exec/RWX-private region bytes + metadata, zero interpretation; all
+   judgment moves to a lab-side `process_memory` analyzer. Lives in a new loud
+   `memory_triage` profile AND `endpoint_deep` (v0.3.0); never in rapid_triage.
+   Implementation (roadmap 2.2) NOT started.
 
-**Pick next:** design `process_memory_inspection` (have the quiet-visitor
-debate — needs explicit go-ahead before opening), or build the deferred COM
-lab hive-parser (parses the already-collected SOFTWARE/NTUSER hives).
+**Pick next:** implement `process_memory_inspection` (roadmap 2.2 — collection
+module, VM test, then the lab `process_memory` analyzer; functional code, VM
+verification required), or build the deferred COM lab hive-parser (parses the
+already-collected SOFTWARE/NTUSER hives).
 
 The TUI-scroll work is fully done — the form and all summary screens
 (`confirm`, `complete`, `analyze-complete`) now scroll instead of clipping.

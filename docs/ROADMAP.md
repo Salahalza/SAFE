@@ -174,5 +174,5 @@ to each completed session.
 
 Format:
 ```
-- [x] 2.1 — Design process_memory_inspection module (journal: 2026-06-15-pmi-design.md)
+- [x] 2.1 — Design process_memory_inspection module (journal: 2026-06-12e-pmi-design.md)
 ```
