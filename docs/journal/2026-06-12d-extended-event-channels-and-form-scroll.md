@@ -46,6 +46,10 @@ form display issues that surfaced once a second profile existed.
   Prominent DO-NOT-VIOLATE section in CLAUDE.md. Also removed a conflicting
   "submit to Microsoft/AV vendors" line from LIMITATIONS.md and documented
   the new `Trojan:Win32/Bearfoos.A!ml` Defender false positive.
+- Scrollable summary screens (commit 9ffce73): the confirm, complete, and
+  analyze-complete screens now share a scroll viewport (wheel/PgUp/PgDn/
+  arrows/Home-End), with hints in persistent footers. Closes the TUI-scroll
+  follow-up flagged earlier in the session. VM-verified by Salah.
 
 ## What got decided
 
@@ -86,9 +90,6 @@ form display issues that surfaced once a second profile existed.
 - COM hijack surfacing — deferred to a future lab hive-parser (parses the
   already-collected SOFTWARE/NTUSER hives); recorded in an
   extended_persistence finding.
-- Other tall TUI screens (`confirm`, `complete`, `analyze-complete`) can
-  still clip on very short terminals. Same viewport pattern will extend to
-  them — tracked here and in CHANGELOG.
 - Mouse-wheel behavior specifically in plain Windows PowerShell (conhost)
   not separately confirmed; the keyboard scroll path is the guaranteed fix
   regardless.
@@ -112,10 +113,12 @@ form display issues that surfaced once a second profile existed.
 
 ## What's next
 
-Continue Phase 2. The remaining module is `process_memory_inspection`
-(roadmap 2.1) — the contentious quiet-visitor design debate. Or pick up the
-deferred COM lab hive-parser, or extend the scroll viewport to the remaining
-tall TUI screens (`confirm`/`complete`/`analyze-complete`).
+Continue Phase 2. The remaining collection module is
+`process_memory_inspection` (roadmap 2.1) — the contentious quiet-visitor
+design debate, which needs Salah's explicit go-ahead before opening. The
+other open item is the deferred COM lab hive-parser (parses the already-
+collected SOFTWARE/NTUSER hives). The TUI-scroll work is now fully done
+(form + all summary screens).
 
 ## Notes for the next session
 

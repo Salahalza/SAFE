@@ -28,8 +28,10 @@ profile selector turned into a wrapping vertical list.
   v0.1.0 — rapid_triage superset + extended_event_channels)
 - Analysis via `safe --analyze <case-folder>` or TUI Option 2
 - Report viewing via TUI Option 3 (structured, scrollable, viewport-based)
-- New-case form scrolls (mouse wheel / PgUp / PgDn / focus-follow); profile
-  options render as a width-aware vertical list
+- All terminal-size-sensitive screens scroll instead of clipping: the
+  new-case form (mouse wheel / PgUp / PgDn / focus-follow) and the confirm,
+  complete, and analyze-complete summary screens (shared scroll viewport);
+  profile options render as a width-aware vertical list
 - VSS shadow management with orphan cleanup
 - IR# / CSI# case metadata fields
 - Bulk vs primary artifact distinction
@@ -64,9 +66,11 @@ docs/ROADMAP.md for session-level estimates.
    quiet-visitor principle); roadmap 2.1 is a design session for it.
 
 **Pick next:** design `process_memory_inspection` (have the quiet-visitor
-debate), build the deferred COM lab hive-parser, or extend the scroll
-viewport to the remaining tall TUI screens (`confirm`, `complete`,
-`analyze-complete`), which can still clip on very short terminals.
+debate — needs explicit go-ahead before opening), or build the deferred COM
+lab hive-parser (parses the already-collected SOFTWARE/NTUSER hives).
+
+The TUI-scroll work is fully done — the form and all summary screens
+(`confirm`, `complete`, `analyze-complete`) now scroll instead of clipping.
 
 Phase 2 effort estimate: 6-10 sessions.
 
