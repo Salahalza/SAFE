@@ -222,6 +222,23 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 		modResult := runModuleWithWatchdog(m, ctx, m.TimeBudget())
 		modCancel()
 
+		// Write the per-module SHA-256 manifest immediately. The case-level
+		// manifest is built by globbing these module.json files, so if this write
+		// fails the module's artifacts never roll up into the case manifest and
+		// escape the integrity contract entirely. A silent log line is not enough:
+		// surface it on the result and degrade a clean success to partial so the
+		// case never reports "success" over unhashed evidence.
+		if _, err := manifest.WriteModuleManifest(moduleDir, m.Name()); err != nil {
+			modResult.Errors = append(modResult.Errors,
+				fmt.Sprintf("module manifest write failed — artifacts not hashed at case level: %v", err))
+			if modResult.Status == module.StatusSuccess {
+				modResult.Status = module.StatusPartial
+			}
+			if e.ProgressCh == nil {
+				fmt.Printf("      warning: failed to write module manifest: %v\n", err)
+			}
+		}
+
 		result.Modules = append(result.Modules, modResult)
 
 		info, warning, critical := modResult.CountBySeverity()
@@ -243,12 +260,6 @@ func (e *Engine) Run(p *profile.Profile) CaseResult {
 			},
 			statusLine,
 		)
-
-		if _, err := manifest.WriteModuleManifest(moduleDir, m.Name()); err != nil {
-			if e.ProgressCh == nil {
-				fmt.Printf("      warning: failed to write module manifest: %v\n", err)
-			}
-		}
 
 		if modResult.Status == module.StatusFailed && m.Priority() == module.PriorityCritical {
 			if e.ProgressCh == nil {
@@ -312,6 +323,27 @@ func runModuleWithWatchdog(m module.Module, ctx *module.Context, budget time.Dur
 	started := time.Now().UTC()
 
 	go func() {
+		// Recover from a module panic so one misbehaving module degrades to a
+		// failed result instead of crashing the whole process. A crash here would
+		// be especially damaging: the deferred VSS shadow cleanup lives on Run's
+		// goroutine, so a panic on this goroutine would unwind past it and leak
+		// the shadow, and no manifest/result would be written for the case.
+		// resultCh is buffered (cap 1) so this send never blocks even if the
+		// watchdog has already returned on the hard-ceiling path.
+		defer func() {
+			if r := recover(); r != nil {
+				resultCh <- module.Result{
+					ModuleName: m.Name(),
+					Status:     module.StatusFailed,
+					StartedAt:  started,
+					EndedAt:    time.Now().UTC(),
+					Duration:   time.Since(started),
+					Errors:     []string{fmt.Sprintf("module panicked: %v", r)},
+					Artifacts:  []module.Artifact{},
+					Findings:   []module.Finding{},
+				}
+			}
+		}()
 		resultCh <- m.Run(ctx)
 	}()
 

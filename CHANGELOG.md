@@ -647,3 +647,62 @@ memory capture. Design: docs/journal/2026-06-12e-pmi-design.md.
 - No change to collected/parsed output or to any artifact — progress reporting
   is display-only. Collection within-module bar VM-verified; analysis
   within-parser bar built on the same streaming path.
+
+
+
+## 2026-06-13 — Correctness audit: integrity, reporting, and module fixes
+
+A read-only audit of the collection modules, extended modules + PMI, the
+UserAssist/Prefetch analyzers, and the engine/manifest/report/casemeta layer
+against real VM output surfaced a set of correctness and robustness gaps. The
+evidence itself reconciled cleanly (the SHA-256 walker hashes every collected
+byte); the fixes concentrate on engine robustness, `--verify` completeness, and
+report provenance.
+
+**Integrity / robustness**
+- Engine now recovers from a module panic: instead of crashing the process —
+  which would unwind past the deferred VSS shadow cleanup and leak the shadow,
+  losing the whole case — a panicking module is recorded as a `failed` result
+  and the run continues.
+- A failed per-module manifest write is no longer swallowed: it is surfaced on
+  the module result and degrades a clean `success` to `partial`, so a case never
+  reports success over artifacts that escaped the case-level manifest.
+- `--verify` is now a full reconciliation, not an allowlist check:
+  - it also verifies `lab_report/manifest.sha256` (analyzer output previously had
+    a manifest written but no verification path);
+  - it walks the case folder and flags any regular file on disk that no manifest
+    covers (added/planted evidence) as `Extra`, failing verification. A file
+    dropped into a module dir or the case root is now caught, not silently
+    accepted. VM-verified: planted files in both a module dir and `lab_report/`
+    are detected, alongside hash mismatches.
+
+**Reporting / provenance (`case_report.txt`, `case.json`)**
+- The report now includes a COLLECTION PROVENANCE section with the Volume Shadow
+  Copy ID (audit-trail, architectural principle #3), the collected hostname (read
+  from `system_metadata`, distinct from the analyst's free-text target label),
+  total bytes collected, and the profile version.
+- A NOTE makes explicit that the report is collection-time only and that IOC
+  triage requires `safe --analyze` — so a "clean" collection report is no longer
+  mistaken for "no detections."
+- `case.json` is rewritten after the run to record `profile_version`,
+  `shadow_id`, and `ended_at` (previously written once, pre-run, missing these).
+
+**Module-level**
+- `process_memory_inspection`: a partial `ReadProcessMemory` (ERROR_PARTIAL_COPY,
+  an unreadable page mid-region) now salvages the readable prefix — usually the
+  bytes that matter on an injected/RWX region — instead of dropping the whole
+  region; the row is flagged `partial read` in `regions.csv`. A zero-byte read no
+  longer writes an empty blob.
+- `user_hives_collection`: the per-user `Username` is now populated (for
+  human-readable findings), and the per-user output directory is explicitly
+  pinned to the SID — the lab analyzers read that directory name back AS the SID
+  for attribution, so it is a contract, not a display choice.
+- A failed command's captured output (e.g. "Access is denied") is reconciled with
+  the result: a non-empty capture is registered as an artifact with a warning
+  (so the manifest and result agree), an empty one is removed (no zero-byte
+  orphan).
+- UserAssist/Prefetch CSV output neutralizes spreadsheet formula injection on
+  attacker-influenceable text columns (program paths, prefetch names): a value
+  beginning with `=`/`+`/`-`/`@` is prefixed with a quote so it cannot execute
+  when an analyst opens the CSV in Excel.
+- Report text truncation is now rune-aware (no split multibyte characters).
