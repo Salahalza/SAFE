@@ -1,6 +1,6 @@
 # SESSION HANDOFF
 
-Last updated: 2026-06-12 (session 2026-06-12g)
+Last updated: 2026-06-13 (session 2026-06-13 — audit fixes + WMI parser)
 Last assistant: Claude Code (VSCode)
 
 This document captures the current state of the project, what's in flight,
@@ -19,11 +19,18 @@ are built and VM-verified — `extended_event_channels` and `extended_persistenc
 **SAFE** end to end (Go module `safe`, `cmd/safe/`, `C:\safe_shadow_*`,
 regenerated TUI banner, all docs).
 
-What remains under the Phase 2 umbrella is LAB-SIDE, not collection: the
-`process_memory` analyzer (parses the PMI dumps), the COM-hijack hive-parser,
-and WMI-subscription surfacing. Those are analyzer work and are tracked into
-Phase 4 (Parser Expansion). The next *collection* phase is Phase 3 (Browser +
-Per-User). See "Phase 2 status" below.
+**Phase 2 is now fully complete — collection AND lab.** As of session
+2026-06-13 the last deferred Phase 2 lab item, the WMI-subscription parser, is
+built and verified (commit 2e1970e). The `process_memory` and `com_hijack`
+analyzers landed in 2026-06-12g. There is no remaining Phase 2 debt. The next
+*collection* phase is Phase 3 (Browser + Per-User). See "Phase 2 status" below.
+
+The 2026-06-13 session also ran a correctness audit and landed 6 integrity/
+reporting/module fixes (commits 4178da0..a8bd1cd, all pushed) — engine panic
+recovery, `--verify` reconciliation (now covers lab_report + detects added
+files), report collection-provenance, PMI partial-read salvage, SID-pinned
+per-user hive dirs, failed-command output reconciliation, and CSV
+formula-injection hardening. See docs/journal/2026-06-13-audit-fixes-and-wmi-parser.md.
 
 **What works:**
 - Collection via `safe --tui` or CLI flags
@@ -43,7 +50,8 @@ Per-User). See "Phase 2 status" below.
 - 12 collection modules: process, network, system metadata, event logs,
   registry, persistence, amcache, user hives, prefetch, extended event
   channels, extended persistence, process memory inspection
-- 4 analyzer parsers: UserAssist, Prefetch, process_memory, com_hijack
+- 5 analyzer parsers: UserAssist, Prefetch, process_memory, com_hijack,
+  wmi_subscriptions
 - Live data-driven progress bars (collection within-module by files/bytes;
   analysis within-parser), TUI (solid bars) and CLI (ASCII bars)
 - Block-letter SAFE banner on welcome screen
@@ -81,17 +89,26 @@ tracking.
   user's UsrClass.dat (NOT NTUSER.DAT — that has no CLSID surface), HKLM SOFTWARE
   as a shadow oracle. Regression fixture: `test-fixtures/com_hijack_planted/`
   (see docs/test-fixtures.md).
-- WMI-subscription surfacing — **still deferred** (Phase 4). Parse the WMI
-  repository in lab.
+- WMI-subscription surfacing (`wmi_subscriptions`) — **DONE** (commit 2e1970e,
+  session 2026-06-13). Does NOT parse the binary WMI repository — persistence_core
+  already captures the three `Get-CimInstance` Format-List listings
+  (consumers/filters/bindings), so the parser reads that text, correlates
+  filter↔consumer via bindings, and tiers for T1546.003 (HIGH = live binding
+  driving a code-exec consumer; NOTABLE = staged/non-baseline/abused trigger;
+  LOW = NTEventLogEventConsumer baseline). Outputs
+  `lab_report/wmi_subscriptions/{wmi_subscriptions.csv,summary.txt}`.
 
 ## Immediate Next Steps
 
 **Pick next:**
 - **Begin Phase 3 (Browser + Per-User)** — the next *collection* phase
   (per_user_iteration infra, browser_artifacts, jump_lists). See ROADMAP 3.x.
-- **WMI-subscription lab parser** — the last deferred Phase 2 lab item.
-- Optional: a quick VM `--analyze` glance at the analysis progress bar (the
-  com_hijack within-parser milestones during its ~13s); display-only.
+  Phase 2 has no remaining debt.
+- Optional: a belt-and-suspenders VM `--analyze` glance at the new
+  `wmi_subscriptions` output (locally verified; no platform-specific code).
+- Optional: address the LOW-tier audit nits captured in
+  docs/journal/2026-06-13-audit-fixes-and-wmi-parser.md (none are correctness
+  bugs).
 
 Note: MODULES_REFERENCE.md was brought fully current 2026-06-12f — title fixed
 (SAFE), all 12 collection modules documented, profile-membership matrix and
