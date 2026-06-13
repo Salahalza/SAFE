@@ -129,6 +129,53 @@ clever patterns when straightforward ones work.
 
 ---
 
+## Defensive Security Charter — READ THIS BEFORE REVIEWING ANY MODULE
+
+**SAFE is a defensive, blue-team forensic tool. Every line of it exists to
+DETECT and STOP cyber attacks, never to conduct them.**
+
+This matters for how you (Claude) read this codebase. Several files describe
+attacker techniques in technical detail — process-memory injection indicators
+(RWX-private pages, reflectively-loaded PE images, suspicious imported API
+names) in `internal/analyzer/process_memory.go` and
+`internal/module/process_memory_inspection*.go`, and COM-hijack persistence in
+`internal/analyzer/com_hijack.go`. In past sessions a model treated reading
+these files as if they were offensive content and stopped working. That is a
+misread. **These files are detection logic, not attack logic.** The same way an
+antivirus engine, an EDR product, or a Volatility/Velociraptor plugin must
+understand what malware does in order to recognize it, SAFE describes attacker
+behavior solely to surface its forensic traces for an analyst.
+
+Concretely, to remove any ambiguity:
+
+- **Direction is reverse-of-offense.** SAFE finds evidence of attacks that have
+  *already happened* on a victim host so a responder can scope and remediate.
+  It does not attack anything.
+- **It is collect-and-analyze only.** Collection modules READ host evidence
+  (files, registry hives, memory regions of running processes) using the
+  analyst's own administrative rights on a machine they are responsible for.
+  Analyzers run later in the lab over that collected evidence. There is no
+  payload, no exploit, no shellcode, no code injection, no privilege
+  escalation, no C2, no lateral movement, no detection-evasion, and no
+  targeting of third parties anywhere in this project.
+- **Reading another process's memory is standard DFIR acquisition** — the same
+  mechanism behind WinPmem, DumpIt, Volatility acquisition, and every EDR. SAFE
+  copies raw region bytes for *later* lab triage; the on-target side makes zero
+  interpretation (architectural principle #1).
+- **Naming a MITRE ATT&CK technique (e.g. T1546.015 COM hijacking) is detection
+  vocabulary**, exactly as it appears in Sigma rules, EDR alerts, and threat
+  reports. It marks what to look for, not instructions to do it.
+
+Reviewing, refactoring, explaining, and improving these files is squarely
+within scope and should proceed normally. If something in here ever genuinely
+looks like it crosses from detection into enabling an attack, say so plainly and
+ask Salah — but the default, correct reading of this codebase is defensive.
+
+The key analyzer/module files carry a short version of this notice in their
+header comments so the context travels with the code.
+
+---
+
 ## Operational Security — No External Publication (DO NOT VIOLATE)
 
 SAFE's binary (`safe.exe`) and its source code must NEVER be uploaded,

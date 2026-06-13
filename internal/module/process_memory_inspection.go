@@ -1,3 +1,15 @@
+// -----------------------------------------------------------------------------
+// DEFENSIVE SECURITY / BLUE-TEAM FORENSICS — DETECTION, NOT ATTACK
+//
+// This file is part of SAFE, a Windows incident-response forensic tool. Its
+// sole purpose is to DETECT and TRIAGE malicious activity so blue-team analysts
+// can stop attacks. It does not perform, enable, or facilitate any attack.
+// This is the collect-only shell for process-memory inspection; the actual
+// region read happens in process_memory_inspection_windows.go, and all
+// interpretation happens lab-side in the process_memory analyzer. See the
+// "Defensive Security Charter" in CLAUDE.md.
+// -----------------------------------------------------------------------------
+
 package module
 
 import "time"

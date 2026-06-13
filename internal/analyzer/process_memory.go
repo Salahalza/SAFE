@@ -1,3 +1,24 @@
+// -----------------------------------------------------------------------------
+// DEFENSIVE SECURITY / BLUE-TEAM FORENSICS — DETECTION, NOT ATTACK
+//
+// This file is part of SAFE, a Windows incident-response forensic tool. Its
+// sole purpose is to DETECT and TRIAGE malicious activity so blue-team analysts
+// can stop attacks. It does not perform, enable, or facilitate any attack.
+//
+// This analyzer runs in the analyst's LAB, after the fact, over evidence that
+// was already collected from a host. It reads raw process-memory regions that
+// the collection module dumped and surfaces indicators of code injection —
+// RWX-private pages, reflectively-loaded / manually-mapped PE images, and
+// suspicious imported API names. Recognizing these indicators is exactly what
+// EDR and DFIR tooling does: it is how defenders find malware that is ALREADY
+// running on a victim host. The direction here is the reverse of offense — we
+// name attacker techniques only so we can recognize their forensic traces.
+//
+// There is no payload, exploit, shellcode, injection, evasion, or targeting in
+// this codebase. SAFE is collect-and-analyze only. See the "Defensive Security
+// Charter" in CLAUDE.md and docs/journal/2026-06-12e-pmi-design.md.
+// -----------------------------------------------------------------------------
+
 package analyzer
 
 import (

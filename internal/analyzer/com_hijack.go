@@ -1,3 +1,18 @@
+// -----------------------------------------------------------------------------
+// DEFENSIVE SECURITY / BLUE-TEAM FORENSICS — DETECTION, NOT ATTACK
+//
+// This file is part of SAFE, a Windows incident-response forensic tool. Its
+// sole purpose is to DETECT and TRIAGE malicious activity so blue-team analysts
+// can stop attacks. It does not perform, enable, or facilitate any attack.
+//
+// This analyzer runs in the analyst's LAB over already-collected registry hives
+// and detects COM-hijacking persistence (MITRE T1546.015) left behind by an
+// attacker. It describes the hijack technique only to recognize its forensic
+// footprint — a per-user CLSID overriding a system one — so a defender can find
+// and remove the persistence. It plants nothing and modifies no live system.
+// See the "Defensive Security Charter" in CLAUDE.md.
+// -----------------------------------------------------------------------------
+
 package analyzer
 
 import (
