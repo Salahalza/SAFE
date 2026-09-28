@@ -4,7 +4,8 @@
 
 # SAFE (سيف)
 
-**System for Artifacts Forensic and Examination**
+**System for Artifacts Forensic and Examination**  
+*Created by Salah Alzahrani*
 
 ![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
