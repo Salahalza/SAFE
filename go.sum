@@ -1,11 +1,16 @@
 github.com/TcM1911/stix2 v0.10.4 h1:r6FBO4MoS50KpOgqBB0nFyig0dMl07mTGy2a6Hcqd04=
 github.com/TcM1911/stix2 v0.10.4/go.mod h1:uRJ/5YBK6RxIUv/IV86+Xnswd3L6wGTemS8BwxJF9yY=
+github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a h1:AeXPUzhU0yhID/v5JJEIkjaE85ASe+Vh4Kuv1RSLL+4=
+github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a/go.mod h1:ukJBuruT9b24pdgZwWDvOaCYHeS03B7oQPCUWh25bwM=
 github.com/Velocidex/ordereddict v0.0.0-20191106020901-97c468e5e403/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
 github.com/Velocidex/ordereddict v0.0.0-20200723153557-9460a6764ab8/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
-github.com/Velocidex/ordereddict v0.0.0-20210502082334-cf5d9045c0d1 h1:SssgTG84Ujch5Divx7AmqjbKQaQr7lrARQ51S1dAScA=
 github.com/Velocidex/ordereddict v0.0.0-20210502082334-cf5d9045c0d1/go.mod h1:pxJpvN5ISMtDwrdIdqnJ3ZrjIngCw+WT6gfNil6Zjvo=
+github.com/Velocidex/ordereddict v0.0.0-20230909174157-2aa49cc5d11d h1:fn372EqKyazBxYUP5HPpBi3jId4MXuppEypEALGfvEk=
+github.com/Velocidex/ordereddict v0.0.0-20230909174157-2aa49cc5d11d/go.mod h1:+MqO5UMBemyFSm+yRXslbpFTwPUDhFHUf7HPV92twg4=
 github.com/Velocidex/pkcs7 v0.0.0-20210524015001-8d1eee94a157 h1:cNRL6O5MZdKi4i0aQxW6+7RoT34QMHFuRKpigCIHBG8=
 github.com/Velocidex/pkcs7 v0.0.0-20210524015001-8d1eee94a157/go.mod h1:/fy/Eg4TQz9KkJduvZfGCnbWTQ/LKaknS2wYB52cU6c=
+github.com/Velocidex/yaml/v2 v2.2.8 h1:GUrSy4SBJ6RjGt43k6MeBKtw2z/27gh4A3hfFmFY3No=
+github.com/Velocidex/yaml/v2 v2.2.8/go.mod h1:PlXIg/Pxmoja48C1vMHo7C5pauAZvLq/UEPOQ3DsjS4=
 github.com/alecthomas/assert v0.0.0-20170929043011-405dbfeb8e38/go.mod h1:r7bzyVFMNntcxPZXK3/+KdruV1H5KSlyVY0gc+NgInI=
 github.com/alecthomas/assert v1.0.0 h1:3XmGh/PSuLzDbK3W2gUbRXwgW5lqPkuqvRgeQ30FI5o=
 github.com/alecthomas/assert v1.0.0/go.mod h1:va/d2JC+M7F6s+80kl/R3G7FUiW6JzUO+hPhLyJ36ZY=
@@ -135,6 +140,7 @@ github.com/stretchr/testify v1.3.0/go.mod h1:M5WIy9Dh21IEIfnGCwXGc5bZfKNJtfHm1UV
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
 github.com/stretchr/testify v1.7.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO+kdMU+MU=
+github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/stretchr/testify v1.8.2 h1:+h33VjcLVPDHtOdpUCuF+7gSuG3yGIftsP1YvFihtJ8=
 github.com/stretchr/testify v1.8.2/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=
@@ -212,8 +218,8 @@ www.velocidex.com/golang/binparsergen v0.1.1-0.20201101234514-bbdb29f9ee31 h1:/Q
 www.velocidex.com/golang/binparsergen v0.1.1-0.20201101234514-bbdb29f9ee31/go.mod h1:Ik7C4oJIs4h6c4WHYzkC0YS098WREL8qc8TqEmAOVHI=
 www.velocidex.com/golang/evtx v0.2.0 h1:yJc4mGehn6QA0H5FC2VBMfbjm1u+pwrV7FK1E5dUM/M=
 www.velocidex.com/golang/evtx v0.2.0/go.mod h1:9xB8AP1kAAkv31TJGLFsZiCjwmb85ClGh+kbbp8F8jU=
-www.velocidex.com/golang/go-ntfs v0.2.0 h1:JLS4hOQLupiVzo+1z4Xb8AZyIaXHDmiGnKyoM/bRYq0=
-www.velocidex.com/golang/go-ntfs v0.2.0/go.mod h1:itvbHQcnLdTVIDY6fI3lR0zeBwXwBYBdUFtswE0x1vc=
+www.velocidex.com/golang/go-ntfs v0.2.1 h1:9oSN0CpBZTmM75F4cEpUdAiOW55afj0ZALpvRt8cBZw=
+www.velocidex.com/golang/go-ntfs v0.2.1/go.mod h1:4MSO8W9iNMXyBpjSpxApWfMjJUb9IWFD2Yis5JPZaSY=
 www.velocidex.com/golang/go-pe v0.1.1-0.20211006062218-8f6d1ad6b2d5 h1:0DKSvtYjk95fHAaVX73gs/sS2WhFPyfhaoDNepyHlIw=
 www.velocidex.com/golang/go-pe v0.1.1-0.20211006062218-8f6d1ad6b2d5/go.mod h1:CS4rFs9HGOBYk7bheEC31c2uTI2X0OZ4m4TlSNPue7M=
 www.velocidex.com/golang/go-prefetch v0.0.0-20251027080408-85407689d0cb h1:GW6agTdjRKf0mO5ZAivSo09TwqHb2sPoBCXLGSoEUE4=

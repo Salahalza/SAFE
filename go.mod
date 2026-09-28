@@ -4,7 +4,7 @@ go 1.26.2
 
 require (
 	github.com/TcM1911/stix2 v0.10.4
-	github.com/Velocidex/ordereddict v0.0.0-20210502082334-cf5d9045c0d1
+	github.com/Velocidex/ordereddict v0.0.0-20230909174157-2aa49cc5d11d
 	github.com/charmbracelet/bubbles v1.0.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
@@ -18,13 +18,15 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.53.0
 	www.velocidex.com/golang/evtx v0.2.0
-	www.velocidex.com/golang/go-ntfs v0.2.0
+	www.velocidex.com/golang/go-ntfs v0.2.1
 	www.velocidex.com/golang/go-prefetch v0.0.0-20251027080408-85407689d0cb
 	www.velocidex.com/golang/regparser v0.0.0-20250203141505-31e704a67ef7
 )
 
 require (
+	github.com/Velocidex/json v0.0.0-20220224052537-92f3c0326e5a // indirect
 	github.com/Velocidex/pkcs7 v0.0.0-20210524015001-8d1eee94a157 // indirect
+	github.com/Velocidex/yaml/v2 v2.2.8 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
