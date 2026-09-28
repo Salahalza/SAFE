@@ -1,0 +1,80 @@
+# Built-in detection rules — defense evasion & anti-forensics.
+
+rules:
+  - id: B-05
+    title: Windows Defender Tampering
+    mitre: T1562.001
+    severity: HIGH
+    # EventID 5007 ("platform configuration changed") is a generic audit event
+    # Defender fires for any write under its own config tree — engine startup,
+    # config-hash/service-state bookkeeping, signature updates. On a real host
+    # these number in the hundreds and none are attacker activity, so a 5007 is
+    # only treated as tampering when its data names a known protection-disabling
+    # value. 5001/5004 (real-time protection disabled / malware action failed)
+    # always fire.
+    source: evtx/*Defender*.csv
+    match:
+      any:
+        - field: event_id
+          in: ['5001', '5004']
+        - all:
+            - field: event_id
+              equals: '5007'
+            - field: event_data
+              contains_any:
+                - disablerealtimemonitoring
+                - disablebehaviormonitoring
+                - disableonaccessprotection
+                - disablescanonrealtimeenable
+                - disableioavprotection
+                - disableintrusionpreventionsystem
+                - disablescriptscanning
+                - disablearchivescanning
+                - tamperprotection
+    evidence: "EventID {event_id}: {event_data}"
+    evidence_source: "{source_file}"
+
+  - id: T2-11
+    title: Event Log Clearing (1102/104)
+    mitre: T1070.001
+    severity: HIGH
+    sources:
+      - evtx/Security.csv
+      - evtx/System.csv
+    match:
+      field: event_id
+      in: ['1102', '104']
+    evidence: "Event Log Cleared: ID {event_id} - Data: {event_data}"
+    evidence_source: "{source_file}"
+
+  - id: T2-12
+    title: Volume Shadow Copy Deletion
+    mitre: T1070.004
+    severity: HIGH
+    # SAFE's own shadow cleanup shells out to a single, specifically-targeted
+    # "vssadmin delete shadows /shadow=<id> /quiet" for a shadow it just created
+    # itself. That targeted /shadow= form is excluded so a LATER collection
+    # against the same target does not flag SAFE's own footprint. Real
+    # anti-forensics/ransomware wipes every shadow (/all or /for=<volume>), which
+    # has no /shadow= GUID, so it still fires.
+    source: evtx/Security.csv
+    match:
+      all:
+        - field: event_id
+          equals: '4688'
+        - any:
+            - all:
+                - field: event_data
+                  contains: vssadmin
+                - field: event_data
+                  contains: 'delete shadows'
+                - not:
+                    field: event_data
+                    contains: '/shadow='
+            - all:
+                - field: event_data
+                  contains: wmic
+                - field: event_data
+                  contains: 'shadowcopy delete'
+    evidence: "VSS Deletion Command: {event_data}"
+    evidence_source: Security.csv (4688)

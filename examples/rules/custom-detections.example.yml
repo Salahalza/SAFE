@@ -1,0 +1,58 @@
+# Example custom detection rules for SAFE.
+#
+# Copy this file into your rules directory (see docs/DETECTION_RULES.md) to
+# activate these detections without recompiling. Each reads a CSV under
+# lab_report/ and emits one hit per matching row.
+
+rules:
+  # Flag PsExec service artifacts in the event log — classic remote execution.
+  - id: MY-PSEXEC-01
+    title: PsExec Service Install (remote execution)
+    mitre: T1569.002
+    severity: NOTABLE
+    source: evtx/System.csv
+    match:
+      all:
+        - field: event_id
+          equals: "7045"
+        - field: event_data
+          contains_any: [psexesvc, paexec, remcom]
+    evidence: "Service install consistent with PsExec-style remote execution: {event_data}"
+    evidence_source: System.csv
+
+  # Flag encoded PowerShell command lines recorded in Amcache.
+  - id: MY-PS-ENC-01
+    title: Encoded PowerShell in Amcache
+    mitre: T1059.001
+    severity: HIGH
+    source: amcache/amcache.csv
+    match:
+      all:
+        - field: full_path
+          contains: powershell
+        - field: full_path
+          regex: '-e(nc(odedcommand)?)?\s'
+    evidence: "Encoded PowerShell reference in Amcache: {full_path}"
+    timeline_key: "{full_path}"
+
+  # Example override: raise the built-in RDP logon rule (B-08) from INFO to
+  # NOTABLE in your environment. Reusing the id replaces the built-in rule.
+  - id: B-08
+    title: Remote Interactive Logon (RDP)
+    mitre: T1021.001
+    severity: NOTABLE
+    source: evtx/Security.csv
+    match:
+      all:
+        - field: event_id
+          equals: "4624"
+        - field: event_data
+          contains: '"LogonType":10'
+        - not:
+            field: event_data
+            contains_any:
+              - '"IpAddress":"127.0.0.1"'
+              - '"IpAddress":"::1"'
+              - '"IpAddress":"-"'
+    evidence: "Remote Desktop logon detected. Raw Data: {event_data}"
+    evidence_source: Security.csv

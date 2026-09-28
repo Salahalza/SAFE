@@ -1,0 +1,16 @@
+# Built-in detection rules — staging / discovery footprints.
+
+rules:
+  - id: B-10
+    title: Suspicious ShellBag Path
+    mitre: T1074
+    severity: INFO
+    source: shellbags/shellbags.csv
+    match:
+      any:
+        - field: folder_path
+          contains_any: ['\windows\temp', '\users\public']
+        - field: folder_path
+          starts_with: '\\'
+    evidence: "User browsed to: {folder_path}"
+    evidence_source: shellbags/shellbags.csv

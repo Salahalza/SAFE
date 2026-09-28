@@ -1,0 +1,101 @@
+package module
+
+import (
+	"fmt"
+	"time"
+)
+
+type EventLogsCore struct{}
+
+func (m *EventLogsCore) Name() string              { return "eventlogs_core" }
+func (m *EventLogsCore) Priority() Priority        { return PriorityHigh }
+func (m *EventLogsCore) TimeBudget() time.Duration { return 10 * time.Minute }
+func (m *EventLogsCore) RequiresVSS() bool         { return false }
+
+// RequiresLiveHost is true: this exports channels with `wevtutil epl` against
+// the running EventLog service. For a disk image, the full set of .evtx files is
+// captured as a direct file copy by extended_event_channels instead.
+func (m *EventLogsCore) RequiresLiveHost() bool { return true }
+
+func (m *EventLogsCore) Run(ctx *Context) Result {
+	started := time.Now().UTC()
+	result := Result{
+		ModuleName: m.Name(),
+		StartedAt:  started,
+		Artifacts:  []Artifact{},
+		Findings:   []Finding{},
+		Errors:     []string{},
+	}
+
+	if !prepareOutputDir(&result, ctx.OutputDir, started) {
+		return result
+	}
+
+	coreChannels := []string{
+		"Security",
+		"System",
+		"Application",
+		"Microsoft-Windows-PowerShell/Operational",
+		"Microsoft-Windows-TaskScheduler/Operational",
+		"Microsoft-Windows-TerminalServices-LocalSessionManager/Operational",
+		"Microsoft-Windows-WinRM/Operational",
+		"Microsoft-Windows-Windows Defender/Operational",
+	}
+
+	optionalChannels := []string{
+		"Microsoft-Windows-Sysmon/Operational",
+	}
+
+	var coreCommands []DirectCommand
+	for _, channel := range coreChannels {
+		coreCommands = append(coreCommands, DirectCommand{
+			Filename: channelToFilename(channel),
+			Name:     "wevtutil",
+			Args:     []string{"epl", channel, "{OUTPUT}"},
+		})
+	}
+	runDirectOutputCommands(ctx, coreCommands, &result)
+
+	// Optional channels run one-at-a-time below; reporting progress per single
+	// command would flicker the bar 0→100% each iteration, so give these a
+	// progress-less context (the core batch above carries the module's bar).
+	optCtx := &Context{OutputDir: ctx.OutputDir, Ctx: ctx.Ctx, Root: ctx.Root, Live: ctx.Live, Shadow: ctx.Shadow}
+
+	for _, channel := range optionalChannels {
+		filename := channelToFilename(channel)
+		optResult := Result{
+			Artifacts: []Artifact{},
+			Errors:    []string{},
+			Findings:  []Finding{},
+		}
+		runDirectOutputCommands(optCtx, []DirectCommand{{
+			Filename: filename,
+			Name:     "wevtutil",
+			Args:     []string{"epl", channel, "{OUTPUT}"},
+		}}, &optResult)
+
+		result.Artifacts = append(result.Artifacts, optResult.Artifacts...)
+
+		// Optional channels — failures are informational, not warnings.
+		if len(optResult.Errors) > 0 {
+			msg := fmt.Sprintf("optional channel not present on this target — this is normal unless the corresponding tool is installed: %s", optResult.Errors[0])
+			result.AddInfo(filename, msg)
+		}
+	}
+
+	finalize(&result, started, ctx.Ctx)
+	return result
+}
+
+func channelToFilename(channel string) string {
+	out := make([]byte, 0, len(channel)+5)
+	for i := 0; i < len(channel); i++ {
+		c := channel[i]
+		if c == '/' || c == '\\' || c == ':' {
+			out = append(out, '_')
+		} else {
+			out = append(out, c)
+		}
+	}
+	return string(out) + ".evtx"
+}

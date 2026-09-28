@@ -1,0 +1,14 @@
+SAFE — System for Artifacts Forensic and Examination
+Copyright 2026 Salah Alzahrani
+
+This product includes software developed by:
+
+- Velocidex Innovations (www.velocidex.com) — regparser, go-ntfs, go-prefetch, evtx, go-pe, ordereddict (Apache-2.0)
+- Charmbracelet, Inc. (charm.sh) — Bubble Tea, Lip Gloss, Bubbles (MIT)
+- modernc.org — sqlite (BSD-3-Clause)
+- TcM1911 — stix2 (BSD-2-Clause)
+- ledongthuc — pdf (BSD-3-Clause)
+- parsiya — golnk (Apache-2.0)
+- richardlehane — mscfb (Apache-2.0)
+- yeka — zip (MIT)
+- The Go Authors — golang.org/x/sys, golang.org/x/text (BSD-3-Clause)
