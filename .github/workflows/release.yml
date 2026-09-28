@@ -31,7 +31,7 @@ jobs:
 
       - name: Create Release Archive
         run: |
-          Compress-Archive -Path safe-collect.exe, safe-analyze.exe, hashes.txt, README.md, LICENSE -DestinationPath SAFE-${{ github.ref_name }}-windows-amd64.zip
+          Compress-Archive -Path safe-collect.exe, safe-analyze.exe, hashes.txt, README.md, LICENSE, examples -DestinationPath SAFE-${{ github.ref_name }}-windows-amd64.zip
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

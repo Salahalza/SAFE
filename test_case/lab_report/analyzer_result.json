@@ -1,0 +1,132 @@
+{
+  "case_dir": "test_case",
+  "lab_report_dir": "test_case\\lab_report",
+  "started_at": "2026-09-28T15:28:11.1169531Z",
+  "ended_at": "2026-09-28T15:28:11.1196292Z",
+  "duration_ns": 2676100,
+  "parsers_run": [
+    {
+      "name": "iis",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1174906Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "shellbags",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1174906Z",
+      "duration_ns": 536400
+    },
+    {
+      "name": "shimcache",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.118027Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "sam",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.118027Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "amcache",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1174906Z",
+      "duration_ns": 536400
+    },
+    {
+      "name": "jumplists",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.118027Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "prefetch",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1174906Z",
+      "duration_ns": 1066100
+    },
+    {
+      "name": "userassist",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.118027Z",
+      "duration_ns": 529700
+    },
+    {
+      "name": "wmi_subscriptions",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.118027Z",
+      "duration_ns": 529700
+    },
+    {
+      "name": "browser_cookies",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "bam_dam",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "process_memory",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "scheduled_tasks",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "browser_history",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "mft",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "com_hijack",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.118027Z",
+      "duration_ns": 529700
+    },
+    {
+      "name": "browser_downloads",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "evtx",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "usnjrnl",
+      "status": "skipped",
+      "started_at": "2026-09-28T15:28:11.1185567Z",
+      "duration_ns": 0
+    },
+    {
+      "name": "timeline",
+      "status": "success",
+      "outputs": [
+        "test_case\\lab_report\\timeline.csv"
+      ],
+      "started_at": "2026-09-28T15:28:11.1196292Z",
+      "duration_ns": 0
+    }
+  ]
+}
