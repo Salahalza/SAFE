@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="SAFE Logo" width="250"/>
+</p>
+
 # SAFE (سيف)
 
 **System for Artifacts Forensic and Examination**
