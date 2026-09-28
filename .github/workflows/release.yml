@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger on tags like v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build safe-collect
+        run: go build -o safe-collect.exe ./cmd/safe-collect
+
+      - name: Build safe-analyze
+        run: go build -o safe-analyze.exe ./cmd/safe-analyze
+
+      - name: Generate Hashes
+        run: |
+          Get-FileHash -Algorithm SHA256 safe-collect.exe, safe-analyze.exe | Select-Object Hash, Path | Format-Table -HideTableHeaders > hashes.txt
+
+      - name: Create Release Archive
+        run: |
+          Compress-Archive -Path safe-collect.exe, safe-analyze.exe, hashes.txt, README.md, LICENSE -DestinationPath SAFE-${{ github.ref_name }}-windows-amd64.zip
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            SAFE-${{ github.ref_name }}-windows-amd64.zip
+            safe-collect.exe
+            safe-analyze.exe
+            hashes.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
