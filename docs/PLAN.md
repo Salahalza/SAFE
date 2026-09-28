@@ -274,7 +274,7 @@ Chains of events. Requires mature timeline + correlation engine.
 - `server_role` — auto-detects roles, runs role-specific collection
   (Exchange, MSSQL, SharePoint, IIS, File Server)
 
-**Why deferred to Phase 9:** Salah's caseload is server-heavy. Building
+**Why deferred to Phase 9:** Building
 this after parsing/timeline/detection means server artifacts immediately
 participate in the analyst workflow.
 
@@ -386,5 +386,5 @@ contract.
 - Not a feature race — each phase serves analyst value, not feature parity
 
 SAFE is not trying to disrupt commercial DFIR tools. SAFE is being built
-as the IR tool Salah wishes existed for his actual work, with regional
+as the IR tool built specifically for actual case work, with regional
 and team context shaping decisions. Hold that framing through development.

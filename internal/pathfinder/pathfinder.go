@@ -81,7 +81,7 @@ func DiscoverUserProfiles() ([]UserProfile, error) {
 		profiles = append(profiles, UserProfile{
 			SID:            sid,
 			// The profile directory's basename is the account name in practice
-			// (C:\Users\salah -> "salah"), which is what an analyst expects to
+			// (C:\Users\analyst -> "analyst"), which is what an analyst expects to
 			// see and what user_hives_collection prefers for its per-user output
 			// dir. It is not authoritative (a renamed account keeps its old
 			// profile dir), so the SID remains the canonical key.

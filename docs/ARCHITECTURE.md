@@ -62,7 +62,7 @@ all module manifests plus top-level files. Same applies to lab_report/.
 ### 6. Quality over speed
 
 **Rule:** When choice exists between shipping fast and shipping correctly,
-choose correctly. Salah has explicitly prioritized this.
+choose correctly. This workflow has been explicitly prioritized.
 
 ### 7. Single-binary deployment
 
