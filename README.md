@@ -39,6 +39,10 @@ SAFE enforces strict separation between collection and analysis. **The target en
 
 ## 🚀 Quick Start
 
+<p align="center">
+  <img src="assets/dashboard_demo.webp" alt="SAFE HTML Dashboard Demo" width="800"/>
+</p>
+
 ### 1. Acquisition (Target Endpoint)
 Run `safe-collect.exe` as Administrator on the compromised machine.
 
