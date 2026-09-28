@@ -13,7 +13,7 @@ require (
 	github.com/parsiya/golnk v0.0.0-20260401090434-89c3c681a14a
 	github.com/richardlehane/mscfb v1.0.7
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
-	golang.org/x/sys v0.47.0
+	golang.org/x/sys v0.48.0
 	golang.org/x/text v0.40.0
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.53.0
