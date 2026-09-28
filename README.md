@@ -98,6 +98,14 @@ For complete reference on collection profiles, STIX 2.1 ingestion, and how to wr
 - [Collection Profiles](docs/PROFILES.md)
 - [Modules Reference](docs/MODULES_REFERENCE.md)
 
+## 🙏 Acknowledgements & Inspiration
+
+SAFE stands on the shoulders of giants in the DFIR community. Its design, architecture, and capabilities were heavily inspired by the incredible work of others, including:
+* **Eric Zimmerman (KAPE & EZ Tools):** For pioneering the industry standard in offline Windows artifact parsing and scalable collection methodologies.
+* **Velociraptor:** For its brilliant, high-performance approach to endpoint state collection and VSS manipulation.
+* **Plaso (Log2Timeline):** For establishing the gold standard in supertimeline generation and event correlation.
+* **DFIR-ORC:** For its early architectural principles regarding reliable, offline Windows artifact collection.
+
 ## ⚖️ License & Contributing
 
 SAFE is open-source software licensed under the **Apache License 2.0**. See the [LICENSE](LICENSE) file for details.
