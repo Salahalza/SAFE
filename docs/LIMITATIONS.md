@@ -63,12 +63,12 @@ acquired with the tools mentioned above.
 
 ---
 
-## Third-Party Tool Adapters (KAPE, DFIR-ORC)
+## Third-Party Tool Wrappers
 
 **Status:** Removed from roadmap. Out of scope.
 
 **Rationale:** SAFE is built as a self-contained tool with no third-party
-binary dependencies. KAPE and DFIR-ORC functionality is partially replicated
+binary dependencies. Extraction functionality is partially replicated
 by SAFE's native modules in endpoint_deep, domain_controller, and server_role
 profiles. For full $MFT and USN journal extraction, see DESIGN_QUESTIONS.md
 for the planned native Go implementation.

@@ -83,7 +83,7 @@ to external executables.
 2. Test against real artifacts from VM
 3. If quality insufficient, evaluate Go libraries
 4. If library is excellent, switch and contribute upstream
-5. Wrapping external tools (KAPE, EZ tools, etc.) is NOT acceptable —
+5. Wrapping external binary dependencies is NOT acceptable —
    it breaks single-binary deployment
 
 ### 9. Collected artifacts are raw and tool-agnostic

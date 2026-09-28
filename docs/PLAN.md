@@ -25,7 +25,7 @@ incident scene, who needs:
 - Automated detection against known IOCs and behaviors
 - A unified workflow rather than juggling 5-10 separate tools
 
-SAFE is opinionated. It is not trying to replace Velociraptor, KAPE, or
+SAFE is opinionated. It is focused on its core design principles and
 commercial EDR forensics modes. It is designed for specific regional and
 team workflows with bilingual identity (سيف / SAFE), self-contained split-binary
 deployment, and emphasis on what an IR analyst actually does day-to-day.

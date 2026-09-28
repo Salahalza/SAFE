@@ -9,15 +9,15 @@
 
 **SAFE** is a high-performance Windows incident-response forensic tool designed for rapid, reliable evidence collection and deep offline analysis. Built entirely in Go, it compiles into statically linked, zero-dependency binaries that minimize operational footprint and ensure maximum OPSEC on compromised endpoints.
 
-SAFE is purpose-built for Incident Responders who need to bypass OS locks, avoid triggering EDR during evidence acquisition, and parse millions of artifacts directly into a highly responsive local reporting dashboard.
+SAFE is purpose-built for Incident Responders who need reliable access to locked system files, secure evidence handling during acquisition, and the ability to parse millions of artifacts directly into a highly responsive local reporting dashboard.
 
 ---
 
 ## 🎯 Key Features for Incident Responders
 
-* **Live Acquisition via VSS:** SAFE automatically provisions a temporary Volume Shadow Copy (VSS) to acquire locked system files (e.g., `SAM`, `SYSTEM`, `Amcache.hve`, `$MFT`, and live `EVTX` logs) directly from the shadow, avoiding OS sharing violations.
-* **AV-Safe Payload Collection:** Suspected webshells and binaries are collected straight from the VSS into an encrypted container (`web_payloads.zip` via ZipCrypto with password `infected`). This ensures host EDR and Antivirus engines do not quarantine the evidence during the acquisition phase.
-* **Zero Dependency Parsing:** Analyzes `$MFT`, `$J` (USN Journal), `EVTX`, Prefetch, ShimCache, ShellBags, and Browser SQLite databases entirely in-memory using native Go libraries. **No KAPE, no Python scripts, and no external runtime wrappers.**
+* **Live Acquisition via VSS:** SAFE automatically provisions a temporary Volume Shadow Copy (VSS) to acquire locked system files (e.g., `SAM`, `SYSTEM`, `Amcache.hve`, `$MFT`, and live `EVTX` logs) directly from the shadow securely and reliably.
+* **Secure Payload Collection:** Suspected webshells and binaries are collected straight from the VSS into an encrypted container (`web_payloads.zip` via ZipCrypto with password `infected`). This ensures the integrity of the evidence is maintained and prevents premature alteration by local security controls during the acquisition phase.
+* **Zero Dependency Parsing:** Analyzes `$MFT`, `$J` (USN Journal), `EVTX`, Prefetch, ShimCache, ShellBags, and Browser SQLite databases entirely in-memory using native Go libraries. **No Python scripts or external runtime wrappers are required.**
 * **High-Performance HTML Dashboard:** The analyzer spins up a self-contained local web server. It uses server-side pagination to render **million-row Plaso-compatible timelines** and 800,000+ row MFT dumps with zero browser lag.
 * **Built-in Behavioral Engine:** Automatically evaluates parsed artifacts against a suite of offline behavioral rules (e.g., UAC Bypass, Suspicious PowerShell, IIS Webshell activity) and injects `ALERT` tags directly into the timeline.
 * **Tamper-Evident Chain of Custody:** Every acquired file is SHA-256 hashed on the endpoint, rolling up into a cryptographic `manifest.json` that ensures absolute integrity before analysis begins in the lab.
