@@ -13,6 +13,8 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Server-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-red)
 
+> **Hunt fast. Dig deep. Stay SAFE.**
+
 **SAFE** is a high-performance Windows incident-response forensic tool designed for rapid, reliable evidence collection and deep offline analysis. Built entirely in Go, it compiles into statically linked, zero-dependency binaries that minimize operational footprint and ensure maximum OPSEC on compromised endpoints.
 
 SAFE is purpose-built for Incident Responders who need reliable access to locked system files, secure evidence handling during acquisition, and the ability to parse millions of artifacts directly into a highly responsive local reporting dashboard.
