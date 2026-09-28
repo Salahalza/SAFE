@@ -57,16 +57,16 @@ Run `safe-collect.exe` as Administrator on the compromised machine.
 ### 2. Lab Analysis (Analyst Workstation)
 Transfer the securely hashed case folder to your analysis workstation and run the analyzer.
 
-```bash
+```cmd
 # Analyze the case and automatically launch the HTML Dashboard
-./safe-analyze CASE-INC-2026-0618_20260618-120000
+.\safe-analyze.exe CASE-INC-2026-0618_20260618-120000
 ```
 *If the case was previously analyzed, this command instantly launches the dashboard.*
 
 ### 3. Case Integrity Verification
 At any time during the investigation, you can mathematically prove the case folder has not been tampered with:
-```bash
-./safe-analyze --verify CASE-INC-2026-0618_20260618-120000
+```cmd
+.\safe-analyze.exe --verify CASE-INC-2026-0618_20260618-120000
 ```
 
 ---
@@ -75,12 +75,12 @@ At any time during the investigation, you can mathematically prove the case fold
 
 Standard compilation and cross-compilation are handled natively. Ensure you have Go 1.22+ installed.
 
-```bash
+```cmd
 # Build the analyzer for your current OS
-go build -o safe-analyze ./cmd/safe-analyze
+go build -o safe-analyze.exe ./cmd/safe-analyze
 
-# Cross-compile the collection binary for the Windows target
-GOOS=windows GOARCH=amd64 go build -o safe-collect.exe ./cmd/safe-collect
+# Build the collection binary for the Windows target
+go build -o safe-collect.exe ./cmd/safe-collect
 ```
 
 ---
