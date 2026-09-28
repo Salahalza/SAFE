@@ -7,9 +7,6 @@ This document describes the long-range development plan for SAFE. Each phase
 is a meaningful chunk of work, typically spanning multiple development
 sessions.
 
-For session-level planning, see `docs/ROADMAP.md`.
-For open design questions, see `docs/DESIGN_QUESTIONS.md`.
-
 ---
 
 ## Vision
