@@ -8,6 +8,7 @@
 *Created by Salah Alzahrani*
 
 ![Go](https://img.shields.io/badge/Go-1.22+-00ADD8?logo=go&logoColor=white)
+![Build](https://github.com/Salahalza/SAFE/actions/workflows/test.yml/badge.svg)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%7C%20Server-blue)
 ![License](https://img.shields.io/badge/License-Apache%202.0-red)
