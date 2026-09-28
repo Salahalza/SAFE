@@ -11,7 +11,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/ledongthuc/pdf v0.0.0-20250511090121-5959a4027728
 	github.com/parsiya/golnk v0.0.0-20260401090434-89c3c681a14a
-	github.com/richardlehane/mscfb v1.0.7
+	github.com/richardlehane/mscfb v1.0.8
 	github.com/yeka/zip v0.0.0-20231116150916-03d6312748a9
 	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.40.0
