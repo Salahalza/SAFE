@@ -1,0 +1,47 @@
+# Built-in detection rules — privilege, account creation, remote logon.
+
+rules:
+  - id: B-06
+    title: Process Elevation (UAC Bypass / Privilege Escalation)
+    mitre: T1134
+    severity: NOTABLE
+    source: evtx/Security.csv
+    match:
+      all:
+        - field: event_id
+          equals: '4688'
+        - field: event_data
+          contains: '"TokenElevationType":"%%1937"'
+    evidence: "Process launched with elevated token (Type 2). Raw Data: {event_data}"
+    evidence_source: Security.csv
+
+  - id: B-07
+    title: New Local Account Created
+    mitre: T1136.001
+    severity: NOTABLE
+    source: evtx/Security.csv
+    match:
+      field: event_id
+      equals: '4720'
+    evidence: "Account created: {event_data}"
+    evidence_source: Security.csv
+
+  - id: B-08
+    title: Remote Interactive Logon (RDP)
+    mitre: T1021.001
+    severity: INFO
+    source: evtx/Security.csv
+    match:
+      all:
+        - field: event_id
+          equals: '4624'
+        - field: event_data
+          contains: '"LogonType":10'
+        - not:
+            field: event_data
+            contains_any:
+              - '"IpAddress":"127.0.0.1"'
+              - '"IpAddress":"::1"'
+              - '"IpAddress":"-"'
+    evidence: "Remote Desktop logon detected. Raw Data: {event_data}"
+    evidence_source: Security.csv

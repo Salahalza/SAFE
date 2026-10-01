@@ -1,0 +1,25 @@
+# Build artifacts
+safe
+safe.exe
+safe-analyze.exe
+safe-collect.exe
+
+# Stray file created by the Makefile OS-detection shell probe under git-bash
+nul
+
+# Editor backups
+*~
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test output (case folders)
+test-output/
+
+# Test fixtures (large binary hives; preserved locally, documented in docs/test-fixtures.md)
+test-fixtures/

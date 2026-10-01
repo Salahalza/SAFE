@@ -1,0 +1,81 @@
+# Built-in detection rules — execution & execution-based persistence.
+#
+# These are SAFE's default rules, embedded in the binary. To tune one without
+# recompiling, drop a file in the rules directory with the same `id` (see
+# docs/DETECTION_RULES.md). Every rule reads a CSV under lab_report/ and emits
+# one hit per matching row.
+
+rules:
+  - id: B-01
+    title: Suspicious Scheduled Task using LOLBin
+    mitre: T1053.005
+    # Trust the analyzer's own triage tier rather than re-deriving from flags:
+    # a task can carry a "LOLBin: ..." flag yet be deliberately triaged down to
+    # NOTABLE (e.g. a stock Microsoft task calling rundll32 from system32). Only
+    # HIGH/NOTABLE rows emit; LOW rows are skipped.
+    source: scheduled_tasks/tasks.csv
+    severity_from: tier
+    evidence: "Task '{task_name}' runs: {command} {arguments} (flags: {flags})"
+    evidence_source: scheduled_tasks/tasks.csv
+    timeline_key: "{task_name}"
+
+  - id: B-02
+    title: WMI Event Subscription Persistence
+    mitre: T1546.003
+    severity: HIGH
+    source: wmi_subscriptions/subscriptions.csv
+    match:
+      field: consumer_class
+      in: [CommandLineEventConsumer, ActiveScriptEventConsumer]
+    evidence: "Consumer {consumer_class} bound to {filter_name} executing: {action}"
+    evidence_source: wmi_subscriptions/subscriptions.csv
+
+  - id: B-03
+    title: High-Tier COM Hijack
+    mitre: T1546.015
+    severity: HIGH
+    source: com_hijack/com_servers.csv
+    match:
+      field: triage_tier
+      equals: HIGH
+    evidence: "CLSID {clsid} hijacked by user module: {hkcu_module}"
+    evidence_source: com_hijack/com_servers.csv
+
+  - id: B-04
+    title: Suspicious Script Host Execution
+    mitre: T1059
+    severity: NOTABLE
+    source: prefetch/prefetch.csv
+    match:
+      all:
+        - field: executable
+          in: [wscript.exe, cscript.exe, mshta.exe]
+        - field: files_accessed
+          contains_any: ['\users\', '\temp\', '\programdata\']
+    evidence: "{executable} loaded suspicious paths: {files_accessed}"
+    evidence_source: prefetch/prefetch.csv
+
+  - id: B-09
+    title: Certutil Used for Download
+    mitre: T1105
+    severity: NOTABLE
+    source: prefetch/prefetch.csv
+    match:
+      all:
+        - field: executable
+          equals: certutil.exe
+        - field: files_accessed
+          contains_any: ['\users\', '\temp\', 'urlcache']
+    evidence: "Certutil executed with suspicious paths: {files_accessed}"
+    evidence_source: prefetch/prefetch.csv
+
+  - id: B-11
+    title: LOLBin Executed via Explorer
+    mitre: T1204
+    severity: NOTABLE
+    source: userassist/*.csv
+    match:
+      field: program_name
+      contains_any: [mshta.exe, regsvr32.exe, wscript.exe, cscript.exe]
+    evidence: "UserAssist recorded execution of: {program_name}"
+    evidence_source: "{source_file}"
